@@ -66,6 +66,10 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  //Swap file. must initiate with create swap file
+  struct file *swapFile;			//page file
+
 };
 
 // Process memory is laid out contiguously, low addresses first:

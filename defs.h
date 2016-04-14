@@ -51,7 +51,10 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
-
+int				createSwapFile(struct proc* p);
+int				readFromSwapFile(struct proc * p, char* buffer, uint placeOnFile, uint size);
+int				writeToSwapFile(struct proc* p, char* buffer, uint placeOnFile, uint size);
+int				removeSwapFile(struct proc* p);
 // ide.c
 void            ideinit(void);
 void            ideintr(void);
@@ -121,6 +124,10 @@ void            yield(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
+
+// sysfile
+struct inode*	create(char *path, short type, short major, short minor);
+int				isdirempty(struct inode *dp);
 
 // spinlock.c
 void            acquire(struct spinlock*);
