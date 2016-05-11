@@ -1,6 +1,9 @@
 // Segments in proc->gdt.
 #define NSEGS     7
 
+#define MAX_PSYC_PAGES 15
+#define MAX_TOTAL_PAGES 30
+
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below
@@ -10,7 +13,7 @@ struct cpu {
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
-  
+
   // Cpu-local storage variables; see below
   struct cpu *cpu;
   struct proc *proc;           // The currently-running process.
@@ -51,6 +54,11 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+struct pgdesc {
+  uint inswapfile;
+  uint swaploc;
+};
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -70,6 +78,7 @@ struct proc {
   //Swap file. must initiate with create swap file
   struct file *swapFile;			//page file
 
+  struct pgdesc pages[MAX_TOTAL_PAGES];
 };
 
 // Process memory is laid out contiguously, low addresses first:
