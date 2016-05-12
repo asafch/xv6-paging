@@ -55,7 +55,7 @@ struct context {
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct pgdesc {
-  uint inswapfile;
+  char inswapfile;
   uint swaploc;
 };
 
@@ -77,7 +77,7 @@ struct proc {
 
   //Swap file. must initiate with create swap file
   struct file *swapFile;			//page file
-
+  char pagesNo;
   struct pgdesc pages[MAX_TOTAL_PAGES];
 };
 

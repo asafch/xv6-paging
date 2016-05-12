@@ -71,10 +71,13 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // initialize process's page data
   for (i = 0; i < MAX_TOTAL_PAGES; i++) {
     p->pages[i].inswapfile = 0;
     p->pages[i].swaploc = 0;
   }
+  p->pagesNo = 0;
+
 
   return p;
 }
@@ -164,6 +167,27 @@ fork(void)
 
   pid = np->pid;
 
+  // // initialize process's page data
+  // for (i = 0; i < MAX_TOTAL_PAGES; i++) {
+  //   np->pages[i].inswapfile = proc->pages[i].inswapfile;
+  //   np->pages[i].swaploc = proc->pages[i].swaploc;
+  // }
+  // np->pagesNo = 0;
+  createSwapFile(np);
+  char buf[PGSIZE / 2] = "";
+  int offset = 0;
+  int nread = 0;
+  // pid=2 is sh, so the parent, init (pid=1) has no swap file to copy.
+  // read the parent's swap file in chunks of size PGDIR/2, otherwise for some
+  // reason, you get "panic acquire" if buf is ~4000 bytes
+  if (pid > 2) {
+    while ((nread = readFromSwapFile(proc, buf, offset, PGSIZE / 2)) != 0) {
+      if (writeToSwapFile(np, buf, offset, nread) == -1)
+        panic("fork: error while writing the parent's swap file to the child");
+      offset += nread;
+    }
+  }
+
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
   np->state = RUNNABLE;
@@ -191,6 +215,9 @@ exit(void)
       proc->ofile[fd] = 0;
     }
   }
+
+  if (removeSwapFile(proc) != 0)
+    panic("exit: error deleting swap file");
 
   begin_op();
   iput(proc->cwd);
@@ -288,6 +315,10 @@ scheduler(void)
       // before jumping back to us.
       proc = p;
       switchuvm(p);
+
+      // if (proc-> pid == 1 && proc->swapFile == 0)
+      //   createSwapFile(proc);
+
       p->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
@@ -453,7 +484,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  cprintf("%p\n", getcr3());
+  // cprintf("cr2:%p\n", rcr2());
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
