@@ -154,7 +154,7 @@ main(void)
       break;
     }
   }
-  
+
   #ifdef NONE
   printf(1, "Paging policy: NONE\n");
   #else
@@ -213,7 +213,7 @@ struct cmd*
 execcmd(void)
 {
   struct execcmd *cmd;
-
+  // TODO delete printf(1, "execcmd:malloc pid %d size %d\n", getpid(), sizeof(*cmd));
   cmd = malloc(sizeof(*cmd));
   memset(cmd, 0, sizeof(*cmd));
   cmd->type = EXEC;

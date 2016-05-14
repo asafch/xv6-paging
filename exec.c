@@ -36,6 +36,8 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
+  // TODO delete cprintf("exec pid %d\n", proc->pid);
+  proc->pagesNo = 0;
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
@@ -92,8 +94,14 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  // a swap file has been created in fork(), but its content was of the
+  // parent process, and is no longer relevant.
+  removeSwapFile(proc);
+  createSwapFile(proc);
   switchuvm(proc);
+  // TODO delete cprintf("freevm(oldpgdir)\n");
   freevm(oldpgdir);
+  cprintf("no. pages allocated on exec: %d, pid %d\n", proc->pagesNo, proc->pid);
   return 0;
 
  bad:

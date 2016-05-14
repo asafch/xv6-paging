@@ -131,8 +131,6 @@ setupkvm(void)
   pde_t *pgdir;
   struct kmap *k;
 
-  // TODO check if proc->pid > 2 to distinguish between init+sh and other processes
-
   if((pgdir = (pde_t*)kalloc()) == 0)
     return 0;
   memset(pgdir, 0, PGSIZE);
@@ -217,6 +215,19 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
+void updatePagesForProc(uint va) {
+  int i;
+  for (i = 0; i < MAX_TOTAL_PAGES; i++) {
+    if (!proc->pages[i].used) {
+      proc->pages[i].used = 1;
+      proc->pages[i].virtpageno = va;
+      proc->pagesNo++;
+      return;
+    }
+  }
+  panic("updatePagesForProc: all pages are used");
+}
+
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 int
@@ -233,11 +244,15 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
     mem = kalloc();
+    // TODO delete cprintf("allocuvm: %d, pid %d\n", proc->pagesNo, proc->pid);
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, newsz, oldsz);
+      // TODO delete proc->pagesNo--;
       return 0;
     }
+    uint va = PTE_ADDR(mem);
+    updatePagesForProc(va);
     memset(mem, 0, PGSIZE);
     mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
   }
@@ -268,6 +283,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
         panic("kfree");
       char *v = p2v(pa);
       kfree(v);
+      // TODO delete cprintf("deallocuvm: %d, pid %d\n", proc->pagesNo--, proc->pid);
       *pte = 0;
     }
   }
@@ -283,6 +299,7 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
+  // TODO delete cprintf("freevm pid %d\n", proc->pid);
   deallocuvm(pgdir, KERNBASE, 0);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P){
@@ -327,6 +344,8 @@ copyuvm(pde_t *pgdir, uint sz)
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
       goto bad;
+
+    // TODO delete cprintf("copyuvm:kalloc pid %d\n", proc->pid);
     memmove(mem, (char*)p2v(pa), PGSIZE);
     if(mappages(d, (void*)i, PGSIZE, v2p(mem), flags) < 0)
       goto bad;
@@ -377,6 +396,10 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+
+void swapPages(uint addr) {
+
 }
 
 //PAGEBREAK!

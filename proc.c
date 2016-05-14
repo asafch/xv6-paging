@@ -120,9 +120,11 @@ growproc(int n)
 
   sz = proc->sz;
   if(n > 0){
+    // TODO delete cprintf("growproc:allocuvm pid%d n:%d\n", proc->pid, n);
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
+    // TODO delete cprintf("growproc:deallocuvm\n");
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   }
@@ -145,12 +147,15 @@ fork(void)
     return -1;
 
   // Copy process state from p.
+  // TODO delete cprintf("fork:copyuvm proc->pagesNo:%d\n", proc->pagesNo);
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
+  // TODO delete cprintf("fork:copyuvm proc->pagesNo:%d\n", proc->pagesNo);
+  np->pagesNo = proc->pagesNo;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -180,7 +185,7 @@ fork(void)
   // pid=2 is sh, so the parent, init (pid=1) has no swap file to copy.
   // read the parent's swap file in chunks of size PGDIR/2, otherwise for some
   // reason, you get "panic acquire" if buf is ~4000 bytes
-  if (pid > 2) {
+  if (np->pid > 2) {
     while ((nread = readFromSwapFile(proc, buf, offset, PGSIZE / 2)) != 0) {
       if (writeToSwapFile(np, buf, offset, nread) == -1)
         panic("fork: error while writing the parent's swap file to the child");
@@ -265,6 +270,7 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
+        // TODO delete cprintf("freevm(p->pgdir)\n");
         freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
