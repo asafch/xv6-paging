@@ -1,4 +1,4 @@
-// This file contains definitions for the 
+// This file contains definitions for the
 // x86 memory management unit (MMU).
 
 // Eflags register
@@ -106,7 +106,7 @@ struct segdesc {
 // | Page Directory |   Page Table   | Offset within Page  |
 // |      Index     |      Index     |                     |
 // +----------------+----------------+---------------------+
-//  \--- PDX(va) --/ \--- PTX(va) --/ 
+//  \--- PDX(va) --/ \--- PTX(va) --/
 
 // page directory index
 #define PDX(va)         (((uint)(va) >> PDXSHIFT) & 0x3FF)
@@ -139,6 +139,7 @@ struct segdesc {
 #define PTE_D           0x040   // Dirty
 #define PTE_PS          0x080   // Page Size
 #define PTE_MBZ         0x180   // Bits must be zero
+#define PTE_PG          0x200   // Paged out to secondary storage
 
 // Address in page table or page directory entry
 #define PTE_ADDR(pte)   ((uint)(pte) & ~0xFFF)

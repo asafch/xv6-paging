@@ -33,7 +33,7 @@ seginit(void)
 
   lgdt(c->gdt, sizeof(c->gdt));
   loadgs(SEG_KCPU << 3);
-  
+
   // Initialize cpu-local storage.
   cpu = c;
   proc = 0;
@@ -57,7 +57,7 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
     // Make sure all those PTE_P bits are zero.
     memset(pgtab, 0, PGSIZE);
     // The permissions here are overly generous, but they can
-    // be further restricted by the permissions in the page table 
+    // be further restricted by the permissions in the page table
     // entries, if necessary.
     *pde = v2p(pgtab) | PTE_P | PTE_W | PTE_U;
   }
@@ -72,7 +72,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
   char *a, *last;
   pte_t *pte;
-  
+
   a = (char*)PGROUNDDOWN((uint)va);
   last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
   for(;;){
@@ -94,7 +94,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 // current process's page table during system calls and interrupts;
 // page protection bits prevent user code from using the kernel's
 // mappings.
-// 
+//
 // setupkvm() and exec() set up every page table like this:
 //
 //   0..KERNBASE: user memory (text+data+stack+heap), mapped to
@@ -102,7 +102,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 //   KERNBASE..KERNBASE+EXTMEM: mapped to 0..EXTMEM (for I/O space)
 //   KERNBASE+EXTMEM..data: mapped to EXTMEM..V2P(data)
 //                for the kernel's instructions and r/o data
-//   data..KERNBASE+PHYSTOP: mapped to V2P(data)..PHYSTOP, 
+//   data..KERNBASE+PHYSTOP: mapped to V2P(data)..PHYSTOP,
 //                                  rw data + free physical memory
 //   0xfe000000..0: mapped direct (devices such as ioapic)
 //
@@ -137,7 +137,7 @@ setupkvm(void)
   if (p2v(PHYSTOP) > (void*)DEVSPACE)
     panic("PHYSTOP too high");
   for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
-    if(mappages(pgdir, k->virt, k->phys_end - k->phys_start, 
+    if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
                 (uint)k->phys_start, k->perm) < 0)
       return 0;
   return pgdir;
@@ -182,7 +182,7 @@ void
 inituvm(pde_t *pgdir, char *init, uint sz)
 {
   char *mem;
-  
+
   if(sz >= PGSIZE)
     panic("inituvm: more than a page");
   mem = kalloc();
@@ -215,6 +215,19 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
+void updatePagesForProc(uint va) {
+  int i;
+  for (i = 0; i < MAX_TOTAL_PAGES; i++) {
+    if (!proc->pages[i].used) {
+      proc->pages[i].used = 1;
+      proc->pages[i].virtpageno = va;
+      proc->pagesNo++;
+      return;
+    }
+  }
+  panic("updatePagesForProc: all pages are used");
+}
+
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 int
@@ -231,11 +244,15 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
     mem = kalloc();
+    // TODO delete cprintf("allocuvm: %d, pid %d\n", proc->pagesNo, proc->pid);
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, newsz, oldsz);
+      // TODO delete proc->pagesNo--;
       return 0;
     }
+    uint va = PTE_ADDR(mem);
+    updatePagesForProc(va);
     memset(mem, 0, PGSIZE);
     mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
   }
@@ -266,6 +283,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
         panic("kfree");
       char *v = p2v(pa);
       kfree(v);
+      // TODO delete cprintf("deallocuvm: %d, pid %d\n", proc->pagesNo--, proc->pid);
       *pte = 0;
     }
   }
@@ -281,6 +299,7 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
+  // TODO delete cprintf("freevm pid %d\n", proc->pid);
   deallocuvm(pgdir, KERNBASE, 0);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P){
@@ -325,6 +344,8 @@ copyuvm(pde_t *pgdir, uint sz)
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
       goto bad;
+
+    // TODO delete cprintf("copyuvm:kalloc pid %d\n", proc->pid);
     memmove(mem, (char*)p2v(pa), PGSIZE);
     if(mappages(d, (void*)i, PGSIZE, v2p(mem), flags) < 0)
       goto bad;
@@ -377,10 +398,13 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
+void swapPages(uint addr) {
 
+}
+
+//PAGEBREAK!
+// Blank page.
+//PAGEBREAK!
+// Blank page.
+//PAGEBREAK!
+// Blank page.

@@ -36,6 +36,7 @@ allocproc(void)
 {
   struct proc *p;
   char *sp;
+  int i;
 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -55,11 +56,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -69,6 +70,14 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+  // initialize process's page data
+  for (i = 0; i < MAX_TOTAL_PAGES; i++) {
+    p->pages[i].inswapfile = 0;
+    p->pages[i].swaploc = 0;
+  }
+  p->pagesNo = 0;
+
 
   return p;
 }
@@ -80,7 +89,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -108,12 +117,14 @@ int
 growproc(int n)
 {
   uint sz;
-  
+
   sz = proc->sz;
   if(n > 0){
+    // TODO delete cprintf("growproc:allocuvm pid%d n:%d\n", proc->pid, n);
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
+    // TODO delete cprintf("growproc:deallocuvm\n");
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   }
@@ -136,12 +147,15 @@ fork(void)
     return -1;
 
   // Copy process state from p.
+  // TODO delete cprintf("fork:copyuvm proc->pagesNo:%d\n", proc->pagesNo);
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
+  // TODO delete cprintf("fork:copyuvm proc->pagesNo:%d\n", proc->pagesNo);
+  np->pagesNo = proc->pagesNo;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -155,14 +169,35 @@ fork(void)
   np->cwd = idup(proc->cwd);
 
   safestrcpy(np->name, proc->name, sizeof(proc->name));
- 
+
   pid = np->pid;
+
+  // // initialize process's page data
+  // for (i = 0; i < MAX_TOTAL_PAGES; i++) {
+  //   np->pages[i].inswapfile = proc->pages[i].inswapfile;
+  //   np->pages[i].swaploc = proc->pages[i].swaploc;
+  // }
+  // np->pagesNo = 0;
+  createSwapFile(np);
+  char buf[PGSIZE / 2] = "";
+  int offset = 0;
+  int nread = 0;
+  // pid=2 is sh, so the parent, init (pid=1) has no swap file to copy.
+  // read the parent's swap file in chunks of size PGDIR/2, otherwise for some
+  // reason, you get "panic acquire" if buf is ~4000 bytes
+  if (np->pid > 2) {
+    while ((nread = readFromSwapFile(proc, buf, offset, PGSIZE / 2)) != 0) {
+      if (writeToSwapFile(np, buf, offset, nread) == -1)
+        panic("fork: error while writing the parent's swap file to the child");
+      offset += nread;
+    }
+  }
 
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
   np->state = RUNNABLE;
   release(&ptable.lock);
-  
+
   return pid;
 }
 
@@ -185,6 +220,9 @@ exit(void)
       proc->ofile[fd] = 0;
     }
   }
+
+  if (removeSwapFile(proc) != 0)
+    panic("exit: error deleting swap file");
 
   begin_op();
   iput(proc->cwd);
@@ -232,6 +270,7 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
+        // TODO delete cprintf("freevm(p->pgdir)\n");
         freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
@@ -282,6 +321,10 @@ scheduler(void)
       // before jumping back to us.
       proc = p;
       switchuvm(p);
+
+      // if (proc-> pid == 1 && proc->swapFile == 0)
+      //   createSwapFile(proc);
+
       p->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
@@ -336,13 +379,13 @@ forkret(void)
 
   if (first) {
     // Some initialization functions must be run in the context
-    // of a regular process (e.g., they call sleep), and thus cannot 
+    // of a regular process (e.g., they call sleep), and thus cannot
     // be run from main().
     first = 0;
     iinit(ROOTDEV);
     initlog(ROOTDEV);
   }
-  
+
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -447,7 +490,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  
+  // cprintf("cr2:%p\n", rcr2());
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
