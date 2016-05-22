@@ -80,6 +80,8 @@ struct proc {
   //Swap file. must initiate with create swap file
   struct file *swapFile;			//page file
   int pagesNo;
+  int totalPageFaultCount;
+  int totalPagedOutCount;
   struct pgdesc pages[MAX_TOTAL_PAGES];
 };
 

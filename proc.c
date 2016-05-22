@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "kalloc.h"
 
 struct {
   struct spinlock lock;
@@ -201,6 +202,43 @@ fork(void)
   return pid;
 }
 
+void
+printProcMemPageInfo(struct proc *proc){
+  static char *states[] = {
+  [UNUSED]    "unused",
+  [EMBRYO]    "embryo",
+  [SLEEPING]  "sleep ",
+  [RUNNABLE]  "runble",
+  [RUNNING]   "run   ",
+  [ZOMBIE]    "zombie"
+  };
+  int i;
+  char *state;
+  uint pc[10];
+
+  if(proc->state >= 0 && proc->state < NELEM(states) && states[proc->state])
+    state = states[proc->state];
+  else
+    state = "???";
+
+  // regular xv6 procdump printing
+  cprintf("\n %d %s %s\n", proc->pid, state, proc->name);
+
+  //print out memory pages info:
+  cprintf("Allocated memory pages: %d, \n", proc->pagesNo);
+  cprintf("No. of pages currently paged out: %d, \n", proc->pagesNo > 15 ? proc->pagesNo - 15 : 0);
+  cprintf("Toal No. of page faults: %d, \n", proc->totalPageFaultCount);
+  cprintf("Total number of paged out pages: %d, \n", proc->totalPagedOutCount);
+
+  // regular xv6 procdump printing
+  if(proc->state == SLEEPING){
+    getcallerpcs((uint*)proc->context->ebp+2, pc);
+    for(i=0; i<10 && pc[i] != 0; i++)
+      cprintf(" %p", pc[i]);
+  }
+
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
@@ -223,6 +261,13 @@ exit(void)
 
   if (removeSwapFile(proc) != 0)
     panic("exit: error deleting swap file");
+
+  //TODO: add VERBOSE_PRINT condition here and a macro to makefile  
+  if(proc->pid > 2 /* && VERBOSE_PRINT == TRUE */){ // eser program process
+    
+    // sending proc as arg just to share func with procdump
+    printProcMemPageInfo(proc);
+  }
 
   begin_op();
   iput(proc->cwd);
@@ -478,32 +523,18 @@ kill(int pid)
 void
 procdump(void)
 {
-  static char *states[] = {
-  [UNUSED]    "unused",
-  [EMBRYO]    "embryo",
-  [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
-  [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
-  };
-  int i;
+  int percent;
   struct proc *p;
-  char *state;
-  uint pc[10];
+
   // cprintf("cr2:%p\n", rcr2());
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
-    if(p->state == SLEEPING){
-      getcallerpcs((uint*)p->context->ebp+2, pc);
-      for(i=0; i<10 && pc[i] != 0; i++)
-        cprintf(" %p", pc[i]);
-    }
-    cprintf("\n");
+    printProcMemPageInfo(p);
   }
+
+  // print general (not per-process) physical memory pages info
+  percent = physPagesCounts.currentFreePagesNo * 100 / physPagesCounts.initPagesNo;
+  cprintf("\n\npercent of free physical pages: %d / %d ~ 0.%d \n",  physPagesCounts.currentFreePagesNo, 
+                                                                    physPagesCounts.initPagesNo , percent);
 }

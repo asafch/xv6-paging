@@ -88,6 +88,7 @@ trap(struct trapframe *tf)
       if (vaddr[PTX(addr)] & PTE_PG && !(vaddr[PTX(addr)] & PTE_P)) {
         cprintf("page is in swap file, pid %d, va %p", proc->pid, addr);
         swapPages(addr & ~0xfff);
+        proc->totalPageFaultCount++;
         break;
       }
   //PAGEBREAK: 13

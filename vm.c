@@ -251,6 +251,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       // TODO delete proc->pagesNo--;
       return 0;
     }
+    if(proc->pagesNo >= 15){
+      //page out a page to disk
+      proc->totalPagedOutCount++;
+    }
     uint va = PTE_ADDR(mem);
     updatePagesForProc(va);
     memset(mem, 0, PGSIZE);
