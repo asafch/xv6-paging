@@ -3,7 +3,9 @@
 #include "user.h"
 #include "syscall.h"
 
-int 
+#define PGSIZE 4096
+
+int
 main(int argc, char *argv[]){
 	//printf(1, "hello myMemTest, argc = %d \n", argc);
 	int i, size = 5;
@@ -12,10 +14,10 @@ main(int argc, char *argv[]){
 
 	for (i = 0; i < size; ++i)
 	{
-		arr[i] = (char*) malloc(4096);
+		arr[i] = (char*) malloc(PGSIZE);
 	}
 
-	printf(1, "called malloc(4096) %d times. press any key to free the memory.\n", size);
+	printf(1, "called malloc(PGSIZE) %d times. press any key to free the memory.\n", size);
 	gets(input, 10);
 
 	for (i = 0; i < size; ++i)

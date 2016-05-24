@@ -37,6 +37,7 @@ exec(char *path, char **argv)
 
   // Load program into memory.
   // TODO delete cprintf("exec pid %d\n", proc->pid);
+  int oldpagesno = proc->pagesNo;
   proc->pagesNo = 0;
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
@@ -111,5 +112,6 @@ exec(char *path, char **argv)
     iunlockput(ip);
     end_op();
   }
+  proc->pagesNo = oldpagesno;
   return -1;
 }

@@ -208,8 +208,8 @@ printProcMemPageInfo(struct proc *proc){
   [UNUSED]    "unused",
   [EMBRYO]    "embryo",
   [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
-  [RUNNING]   "run   ",
+  [RUNNABLE]  "runnable",
+  [RUNNING]   "running",
   [ZOMBIE]    "zombie"
   };
   int i;
@@ -225,10 +225,10 @@ printProcMemPageInfo(struct proc *proc){
   cprintf("\n %d %s %s\n", proc->pid, state, proc->name);
 
   //print out memory pages info:
-  cprintf("Allocated memory pages: %d, \n", proc->pagesNo);
-  cprintf("No. of pages currently paged out: %d, \n", proc->pagesNo > 15 ? proc->pagesNo - 15 : 0);
-  cprintf("Toal No. of page faults: %d, \n", proc->totalPageFaultCount);
-  cprintf("Total number of paged out pages: %d, \n", proc->totalPagedOutCount);
+  cprintf("Allocated memory pages: %d,\n", proc->pagesNo);
+  cprintf("No. of pages currently paged out: %d,\n", proc->pagesNo > 15 ? proc->pagesNo - 15 : 0);
+  cprintf("Total No. of page faults: %d,\n", proc->totalPageFaultCount);
+  cprintf("Total number of paged out pages: %d,\n", proc->totalPagedOutCount);
 
   // regular xv6 procdump printing
   if(proc->state == SLEEPING){
@@ -262,9 +262,9 @@ exit(void)
   if (removeSwapFile(proc) != 0)
     panic("exit: error deleting swap file");
 
-  //TODO: add VERBOSE_PRINT condition here and a macro to makefile  
+  //TODO: add VERBOSE_PRINT condition here and a macro to makefile
   if(proc->pid > 2 /* && VERBOSE_PRINT == TRUE */){ // eser program process
-    
+
     // sending proc as arg just to share func with procdump
     printProcMemPageInfo(proc);
   }
@@ -535,6 +535,6 @@ procdump(void)
 
   // print general (not per-process) physical memory pages info
   percent = physPagesCounts.currentFreePagesNo * 100 / physPagesCounts.initPagesNo;
-  cprintf("\n\npercent of free physical pages: %d / %d ~ 0.%d \n",  physPagesCounts.currentFreePagesNo, 
+  cprintf("\n\npercent of free physical pages: %d / %d ~ 0.%d \n",  physPagesCounts.currentFreePagesNo,
                                                                     physPagesCounts.initPagesNo , percent);
 }
