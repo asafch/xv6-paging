@@ -21,6 +21,14 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+int
+strcmp(const char *p, const char *q)
+{
+  while(*p && *p == *q)
+    p++, q++;
+  return (uchar)*p - (uchar)*q;
+}
+
 void
 pinit(void)
 {
@@ -186,7 +194,7 @@ fork(void)
   // pid=2 is sh, so the parent, init (pid=1) has no swap file to copy.
   // read the parent's swap file in chunks of size PGDIR/2, otherwise for some
   // reason, you get "panic acquire" if buf is ~4000 bytes
-  if (np->pid > 2) {
+  if (strcmp(proc->name, "init") != 0 && strcmp(proc->name, "sh") != 0) {
     while ((nread = readFromSwapFile(proc, buf, offset, PGSIZE / 2)) != 0) {
       if (writeToSwapFile(np, buf, offset, nread) == -1)
         panic("fork: error while writing the parent's swap file to the child");
