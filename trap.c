@@ -36,8 +36,8 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
-  uint addr;
-  uint *vaddr;
+  // uint addr;
+  // uint *vaddr;
 
   if(tf->trapno == T_SYSCALL){
     if(proc->killed)
@@ -82,14 +82,18 @@ trap(struct trapframe *tf)
     break;
 
   case T_PGFLT:
-    addr = rcr2();
-    vaddr = (uint *)P2V_WO(proc->pgdir[PDX(addr)]);
-    if ((int)vaddr & PTE_P)
-      if (vaddr[PTX(addr)] & PTE_PG && !(vaddr[PTX(addr)] & PTE_P)) {
-        cprintf("page is in swap file, pid %d, va %p", proc->pid, addr);
-        swapPages(addr & ~0xfff);
-        break;
-      }
+    if (checkPageFault(rcr2())) {
+      swapPages(PTE_ADDR(rcr2()));
+      break;
+    }
+    // addr = rcr2();
+    // vaddr = (uint *)P2V_WO(proc->pgdir[PDX(addr)]);
+    // if ((int)vaddr & PTE_P)
+    //   if (vaddr[PTX(addr)] & PTE_PG && !(vaddr[PTX(addr)] & PTE_P)) {
+    //     cprintf("page is in swap file, pid %d, va %p", proc->pid, addr);
+    //     swapPages(addr & ~0xfff);
+    //     break;
+    //   }
   //PAGEBREAK: 13
   default:
     if(proc == 0 || (tf->cs&3) == 0){

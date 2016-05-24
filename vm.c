@@ -399,7 +399,12 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 }
 
 void swapPages(uint addr) {
+  // check PTE_D\PTE_D to see if you can just write on the page,
+  // or if it needs to be saved to the swap file
+}
 
+int checkPageFault(uint addr) {
+  return (*walkpgdir(proc->pgdir,(void*) addr, 0) & PTE_PG);
 }
 
 //PAGEBREAK!
