@@ -136,6 +136,7 @@ growproc(int n)
     // TODO delete cprintf("growproc:deallocuvm\n");
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
+    proc->pagesNo -= PGROUNDUP(n);
   }
   proc->sz = sz;
   switchuvm(proc);
