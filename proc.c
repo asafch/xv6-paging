@@ -81,11 +81,13 @@ found:
   p->context->eip = (uint)forkret;
 
   // initialize process's page data
-  for (i = 0; i < MAX_TOTAL_PAGES; i++) {
-    p->pages[i].inswapfile = 0;
-    p->pages[i].swaploc = 0;
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    p->freepages[i].va = 0;
+    p->freepages[i].next = 0;
+    p->swappedpages[i].swaploc = 0;
+    p->swappedpages[i].va = 0;
   }
-  p->pagesNo = 0;
+  p->pagesinmem = 0;
 
 
   return p;
@@ -136,7 +138,7 @@ growproc(int n)
     // TODO delete cprintf("growproc:deallocuvm\n");
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
-    proc->pagesNo -= PGROUNDUP(n);
+    proc->pagesinmem -= ((PGROUNDUP(sz) - PGROUNDUP(proc->sz)) % PGSIZE);
   }
   proc->sz = sz;
   switchuvm(proc);
@@ -157,15 +159,15 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  // TODO delete cprintf("fork:copyuvm proc->pagesNo:%d\n", proc->pagesNo);
+  // TODO delete cprintf("fork:copyuvm proc->pagesinmem:%d\n", proc->pagesinmem);
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
-  // TODO delete cprintf("fork:copyuvm proc->pagesNo:%d\n", proc->pagesNo);
-  np->pagesNo = proc->pagesNo;
+  // TODO delete cprintf("fork:copyuvm proc->pagesinmem:%d\n", proc->pagesinmem);
+  np->pagesinmem = proc->pagesinmem;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -187,7 +189,7 @@ fork(void)
   //   np->pages[i].inswapfile = proc->pages[i].inswapfile;
   //   np->pages[i].swaploc = proc->pages[i].swaploc;
   // }
-  // np->pagesNo = 0;
+  // np->pagesinmem = 0;
   createSwapFile(np);
   char buf[PGSIZE / 2] = "";
   int offset = 0;
@@ -216,7 +218,7 @@ printProcMemPageInfo(struct proc *proc){
   static char *states[] = {
   [UNUSED]    "unused",
   [EMBRYO]    "embryo",
-  [SLEEPING]  "sleep ",
+  [SLEEPING]  "sleeping",
   [RUNNABLE]  "runnable",
   [RUNNING]   "running",
   [ZOMBIE]    "zombie"
@@ -234,8 +236,8 @@ printProcMemPageInfo(struct proc *proc){
   cprintf("\n %d %s %s\n", proc->pid, state, proc->name);
 
   //print out memory pages info:
-  cprintf("Allocated memory pages: %d,\n", proc->pagesNo);
-  cprintf("No. of pages currently paged out: %d,\n", proc->pagesNo > 15 ? proc->pagesNo - 15 : 0);
+  cprintf("Allocated memory pages: %d,\n", proc->pagesinmem);
+  cprintf("No. of pages currently paged out: %d,\n", proc->pagesinswapfile);
   cprintf("Total No. of page faults: %d,\n", proc->totalPageFaultCount);
   cprintf("Total number of paged out pages: %d,\n", proc->totalPagedOutCount);
 

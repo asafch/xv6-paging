@@ -215,17 +215,16 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
-void updatePagesForProc(uint va) {
+void recordNewPage(char *va) {
   int i;
-  for (i = 0; i < MAX_TOTAL_PAGES; i++) {
-    if (!proc->pages[i].used) {
-      proc->pages[i].used = 1;
-      proc->pages[i].virtpageno = va;
-      proc->pagesNo++;
-      return;
-    }
-  }
-  panic("updatePagesForProc: all pages are used");
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+    if (proc->freepages[i].va == 0)
+      goto foundrnp;
+  panic("recordNewPage: no free pages");
+foundrnp:
+  proc->freepages[i].next = proc->head;
+  proc->head = &proc->freepages[i];
+  proc->pagesinmem++;
 }
 
 // Allocate page tables and physical memory to grow process from oldsz to
@@ -251,12 +250,13 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       // TODO delete proc->pagesNo--;
       return 0;
     }
-    if(proc->pagesNo >= 15){
-      //page out a page to disk
-      proc->totalPagedOutCount++;
+    if(proc->pagesinmem >= 15){
+      swapPages(PTE_ADDR(mem));
     }
-    uint va = PTE_ADDR(mem);
-    updatePagesForProc(va);
+    else
+      recordNewPage(mem);
+    // uint va = PTE_ADDR(mem);
+    // updatePagesForProc(va);
     memset(mem, 0, PGSIZE);
     mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
   }
@@ -403,7 +403,10 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 }
 
 void swapPages(uint addr) {
-
+  if (strcmp(proc->name, "init") != 0 && strcmp(proc->name, "sh") != 0)
+    return;
+  // TODO implement paging policies
+  proc->totalPagedOutCount++;
 }
 
 //PAGEBREAK!

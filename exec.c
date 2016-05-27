@@ -37,8 +37,8 @@ exec(char *path, char **argv)
 
   // Load program into memory.
   // TODO delete cprintf("exec pid %d\n", proc->pid);
-  int oldpagesno = proc->pagesNo;
-  proc->pagesNo = 0;
+  int oldpagesno = proc->pagesinmem;
+  proc->pagesinmem = 0;
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
@@ -102,7 +102,7 @@ exec(char *path, char **argv)
   switchuvm(proc);
   // TODO delete cprintf("freevm(oldpgdir)\n");
   freevm(oldpgdir);
-  cprintf("no. pages allocated on exec: %d, pid %d\n", proc->pagesNo, proc->pid);
+  cprintf("no. pages allocated on exec: %d, pid %d\n", proc->pagesinmem, proc->pid);
   return 0;
 
  bad:
@@ -112,6 +112,6 @@ exec(char *path, char **argv)
     iunlockput(ip);
     end_op();
   }
-  proc->pagesNo = oldpagesno;
+  proc->pagesinmem = oldpagesno;
   return -1;
 }
