@@ -349,6 +349,15 @@ foundrnp:
   proc->pagesinmem++;
 }
 
+// just for now
+int
+strcmp(const char *p, const char *q)
+{
+  while(*p && *p == *q)
+    p++, q++;
+  return (uchar)*p - (uchar)*q;
+}
+
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 int
