@@ -8,6 +8,8 @@
 #include "elf.h"
 
 extern char data[];  // defined by kernel.ld
+extern int strcmp(const char *p, const char *q);
+
 pde_t *kpgdir;  // for use in scheduler()
 struct segdesc gdt[NSEGS];
 
@@ -347,15 +349,6 @@ foundrnp:
   proc->freepages[i].next = proc->head;
   proc->head = &proc->freepages[i];
   proc->pagesinmem++;
-}
-
-// just for now
-int
-strcmp(const char *p, const char *q)
-{
-  while(*p && *p == *q)
-    p++, q++;
-  return (uchar)*p - (uchar)*q;
 }
 
 // Allocate page tables and physical memory to grow process from oldsz to
