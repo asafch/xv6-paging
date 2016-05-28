@@ -88,7 +88,10 @@ found:
     p->swappedpages[i].va = 0;
   }
   p->pagesinmem = 0;
-
+  p->pagesinswapfile = 0;
+  p->totalPageFaultCount = 0;
+  p->totalPagedOutCount = 0;
+  p->head = 0;
 
   return p;
 }
@@ -273,12 +276,10 @@ exit(void)
   if (removeSwapFile(proc) != 0)
     panic("exit: error deleting swap file");
 
-  //TODO: add VERBOSE_PRINT condition here and a macro to makefile
-  if(proc->pid > 2 /* && VERBOSE_PRINT == TRUE */){ // eser program process
-
-    // sending proc as arg just to share func with procdump
-    printProcMemPageInfo(proc);
-  }
+  #ifdef TRUE
+  // sending proc as arg just to share func with procdump
+  printProcMemPageInfo(proc);
+  #endif
 
   begin_op();
   iput(proc->cwd);

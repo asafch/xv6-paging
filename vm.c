@@ -250,7 +250,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       // TODO delete proc->pagesNo--;
       return 0;
     }
-    if(proc->pagesinmem >= 15){
+    if(proc->pagesinmem >= MAX_PSYC_PAGES){
       swapPages(PTE_ADDR(mem));
     }
     else
