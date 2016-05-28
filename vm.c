@@ -215,8 +215,115 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
+struct pgdesc* 
+slectPageFifo(){
+  //TODO: implement
+  struct pgdesc *page = 0;
+  return page;
+}
+
+struct pgdesc* 
+selectPageToSwap (){
+
+  //select page according to policy
+  //...
+  //case FIFO
+  return slectPageFifo();
+
+  //other cases...
+}
+
+uint
+nextFreeFileSpace(){
+  int i;
+  for (i = 0; i < 15; ++i)
+    if (proc->swapFileSpaces[i] == 0){
+      proc->swapFileSpaces[i] = 1;
+      return i * PGSIZE;
+    }
+  panic("nextFreeFileSpace: file is full");
+}
+
+void
+pageOut(struct pgdesc *page){
+
+  pte_t *pte;
+  uint pa, placeOnFile;
+
+  if((pte = walkpgdir(proc->pgdir, (void *) page->va, 0)) == 0)
+    panic("pageOut: pte should exist");
+  if(!(*pte & PTE_P))
+    panic("pageOut: page not present");
+  pa = PTE_ADDR(*pte);
+  //flags = PTE_FLAGS(*pte);
+
+  placeOnFile = nextFreeFileSpace();
+  //write to swapfile
+  if(writeToSwapFile(proc, (char*)p2v(pa), placeOnFile, PGSIZE) < 0)
+    panic("pageOut: writeToSwapFile failed");
+
+  *pte |= PTE_PG;
+
+  //update counters
+  proc->totalPagedOutCount++;
+  proc->pagesinswapfile++;
+  page->swaploc = placeOnFile;
+ 
+  //free phys page
+  char *v = p2v(pa);
+  kfree(v);
+}
+
+void 
+swapPages(uint addr) {
+  int i;
+  char *mem;
+  uint placeOnFile;
+  pte_t *pte;
+  struct pgdesc *page;
+
+  //find location in file 
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    if(proc->swappedpages[i].va == PTE_ADDR(addr)){
+      placeOnFile = proc->swappedpages[i].swaploc;
+    }
+  }
+
+  //allocate new phys page, write to it from disc and map it in pagedir
+  if((mem = kalloc()) == 0)
+    panic("swapPages: kalloc failed");
+
+  if(readFromSwapFile(proc, (char*) mem, placeOnFile, PGSIZE) == -1)
+    panic("swapPages: readFromSwapFile failed");
+
+  if(mappages(proc->pgdir, (void*)PTE_ADDR(addr), PGSIZE, v2p(mem), PTE_FLAGS(addr)) < 0)
+    panic("swapPages: mappages failed");
+
+  //get pte and mark as not paged out
+  if((pte = walkpgdir(proc->pgdir, (void *) addr, 0)) == 0)
+    panic("swapPages: pte should exist");
+  if(!(*pte & PTE_P))
+    panic("swapPages: page not present");
+  *pte &= ~PTE_PG;
+
+  //update counters
+  proc->swapFileSpaces[placeOnFile / PGSIZE] = 0;
+  --proc->pagesinswapfile;
+  ++proc->pagesinmem;
+
+  //check if a pageout is actually needed
+  if(proc->pagesinmem <= MAX_PSYC_PAGES) //guess some phys pages have been deallocated
+    return;
+  
+  //else, select page according to policy and move it to disc
+  page = selectPageToSwap();
+  pageOut(page);
+}
+
+/*
 void updatePagesForProc(uint va) {
   int i;
+  
   for (i = 0; i < MAX_TOTAL_PAGES; i++) {
     if (!proc->pages[i].used) {
       proc->pages[i].used = 1;
@@ -227,6 +334,20 @@ void updatePagesForProc(uint va) {
   }
   panic("updatePagesForProc: all pages are used");
 }
+*/
+
+void 
+recordNewPage(char *va) {
+  int i;
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+    if (proc->freepages[i].va == 0)
+      goto foundrnp;
+  panic("recordNewPage: no free pages");
+foundrnp:
+  proc->freepages[i].next = proc->head;
+  proc->head = &proc->freepages[i];
+  proc->pagesinmem++;
+}
 
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
@@ -235,6 +356,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   char *mem;
   uint a;
+  struct pgdesc *page;
 
   if(newsz >= KERNBASE)
     return 0;
@@ -243,6 +365,14 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+    if(proc->pagesinmem + proc->pagesinswapfile >= MAX_TOTAL_PAGES)
+      panic("allocuvm: MAX_TOTAL_PAGES exceeded");
+
+    if(proc->pagesinmem >= MAX_PSYC_PAGES){
+      page = selectPageToSwap();
+      pageOut(page);
+    }
+    //continue as usual
     mem = kalloc();
     // TODO delete cprintf("allocuvm: %d, pid %d\n", proc->pagesNo, proc->pid);
     if(mem == 0){
@@ -251,14 +381,12 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       // TODO delete proc->pagesNo--;
       return 0;
     }
-    if(proc->pagesNo >= 15){
-      //page out a page to disk
-      proc->totalPagedOutCount++;
-    }
-    uint va = PTE_ADDR(mem);
-    updatePagesForProc(va);
+    //uint va = PTE_ADDR(mem);
+    //updatePagesForProc(va);
+    recordNewPage(mem);
     memset(mem, 0, PGSIZE);
     mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+    proc->pagesinmem++;
   }
   return newsz;
 }
@@ -400,10 +528,6 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
-}
-
-void swapPages(uint addr) {
-
 }
 
 //PAGEBREAK!

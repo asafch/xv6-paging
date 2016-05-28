@@ -55,10 +55,13 @@ struct context {
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct pgdesc {
-  char inswapfile;
-  char used;
   uint swaploc;
-  uint virtpageno;
+  uint va;
+};
+
+struct freepg {
+  uint va;
+  struct freepg *next;
 };
 
 // Per-process state
@@ -79,10 +82,14 @@ struct proc {
 
   //Swap file. must initiate with create swap file
   struct file *swapFile;			//page file
-  int pagesNo;
+  int swapFileSpaces[MAX_PSYC_PAGES]; //keep track of available space in file
+  int pagesinmem;
+  int pagesinswapfile;
   int totalPageFaultCount;
   int totalPagedOutCount;
-  struct pgdesc pages[MAX_TOTAL_PAGES];
+  struct freepg freepages[MAX_PSYC_PAGES];
+  struct pgdesc swappedpages[MAX_PSYC_PAGES];
+  struct freepg *head;
 };
 
 // Process memory is laid out contiguously, low addresses first:
