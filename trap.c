@@ -85,9 +85,11 @@ trap(struct trapframe *tf)
   case T_PGFLT:
     addr = rcr2();
     vaddr = &proc->pgdir[PDX(addr)];
-    if (!((int)(*vaddr) & PTE_P)) { // if page table isn't present at page directory -> hard page fault
-      if ((((uint*)P2V(*vaddr))[PTX(addr)] & PTE_PG) && !((((uint*)P2V(*vaddr))[PTX(addr)] & PTE_P))) { // if the page is in the process's swap file
-        cprintf("page is in swap file, pid %d, va %p", proc->pid, addr);
+    cprintf("addr:%x vaddr:%x PDX:%x PTX:%x FLAGS:%x\n", addr, vaddr, PDX(*vaddr),PTX(*vaddr),PTE_FLAGS(*vaddr));
+    cprintf("&PTE_PG:%x &PTE_P:%x\n", (((uint*)P2V(*vaddr))[PTX(addr)] & PTE_PG), ((((uint*)P2V(*vaddr))[PTX(addr)] & PTE_P)));
+    if (((int)(*vaddr) & PTE_P)) { // if page table isn't present at page directory -> hard page fault
+      if (((uint*)P2V(*vaddr))[PTX(addr)] & PTE_PG) { // if the page is in the process's swap file
+        cprintf("page is in swap file, pid %d, va %p\n", proc->pid, addr);
         swapPages(addr);
         proc->totalPageFaultCount++;
         return;

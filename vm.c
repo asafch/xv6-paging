@@ -263,7 +263,7 @@ foundswappedpageslot:
   l = link->next;
   link->next = 0;
   proc->swappedpages[i].va = l->va;
-  writeToSwapFile(proc, (char*)PTE_ADDR(l->va), i * PGSIZE, PGSIZE);
+  cprintf("written %d bytes\n", writeToSwapFile(proc, (char*)PTE_ADDR(l->va), i * PGSIZE, PGSIZE));
   pte_t *pte1 = walkpgdir(proc->pgdir, (void*)l->va, 0);
   if (!*pte1)
     panic("writePageToSwapFile: pte1 is empty");
@@ -272,7 +272,10 @@ foundswappedpageslot:
   //   panic("writePageToSwapFile: pte2 is empty");
   *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_P | PTE_W;
   *pte1 = PTE_W | PTE_U | PTE_PG;
-  return (char*)pte2;
+  l->next = proc->head;
+  proc->head = l;
+  lcr3(v2p(proc->pgdir));
+  return addr;
 
 #else
 
@@ -525,6 +528,7 @@ void swapPages(uint addr) {
 #endif
 #endif
 #endif
+  lcr3(v2p(proc->pgdir));
   proc->totalPagedOutCount++;
 }
 
