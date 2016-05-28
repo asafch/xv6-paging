@@ -9,7 +9,7 @@
 int
 main(int argc, char *argv[]){
 	//printf(1, "hello myMemTest, argc = %d \n", argc);
-	int i;
+	int i, j;
 	char *arr[SIZE];
 	char input[10];
 
@@ -22,14 +22,19 @@ main(int argc, char *argv[]){
 	arr[12] = sbrk(PGSIZE);
 	printf(1, "called sbrk(PGSIZE) for the 13th time, page replacement algorithm should have completed successfuly, press any key...\n");
 	gets(input, 10);
-
-	for (i = 0; i < SIZE; ++i)
-	{
-		free(arr[i]);
+	for (i = 0; i < 13; ++i) {
+		for (j = 0; j < PGSIZE; j++)
+			arr[i][j] = 'k';
 	}
-	printf(1, "should have freed all memory allocated by sbrk(), check with ^p\nPress any key to exit function.\n");
+	printf(1, "Successfuly written data to all pages. exiting...\n");
 
-	gets(input, 10);
+	// for (i = 0; i < SIZE; ++i)
+	// {
+	// 	free(arr[i]);
+	// }
+	// printf(1, "should have freed all memory allocated by sbrk(), check with ^p\nPress any key to exit function.\n");
+	//
+	// gets(input, 10);
 
 	exit();
 	//return 0;

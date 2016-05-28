@@ -242,7 +242,7 @@ foundrnp:
   proc->pagesinmem++;
 }
 
-char *writePageToSwapFile(char *addr) {
+struct freepg *writePageToSwapFile(void) {
   int i;
 #if SELECTION==FIFO
   struct freepg *link, *l;
@@ -263,19 +263,21 @@ foundswappedpageslot:
   l = link->next;
   link->next = 0;
   proc->swappedpages[i].va = l->va;
-  cprintf("written %d bytes\n", writeToSwapFile(proc, (char*)PTE_ADDR(l->va), i * PGSIZE, PGSIZE));
+  kfree((char*)l->va);
+  int num = 0;
+  if ((num = writeToSwapFile(proc, (char*)PTE_ADDR(l->va), i * PGSIZE, PGSIZE)) == 0)
+    return 0;
+  cprintf("written %d bytes to swap file, pid:%d, va:0x%x\n", num, proc->pid, l->va);//TODO delete
   pte_t *pte1 = walkpgdir(proc->pgdir, (void*)l->va, 0);
   if (!*pte1)
     panic("writePageToSwapFile: pte1 is empty");
-  pte_t *pte2 = walkpgdir(proc->pgdir, addr, 1);
-  // if (!*pte2)
-  //   panic("writePageToSwapFile: pte2 is empty");
-  *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_P | PTE_W;
+  // pte_t *pte2 = walkpgdir(proc->pgdir, addr, 1);
+  // // if (!*pte2)
+  // //   panic("writePageToSwapFile: pte2 is empty");
+  // *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_P | PTE_W;
   *pte1 = PTE_W | PTE_U | PTE_PG;
-  l->next = proc->head;
-  proc->head = l;
-  lcr3(v2p(proc->pgdir));
-  return addr;
+  // lcr3(v2p(proc->pgdir));
+  return l;
 
 #else
 
@@ -296,6 +298,7 @@ int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   char *mem;
+  struct freepg *l;
   uint a, newpage = 1;
 
   if(newsz >= KERNBASE)
@@ -305,13 +308,15 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
-    if(proc->pagesinmem >= MAX_PSYC_PAGES){
-      mem = writePageToSwapFile((char*)a);
+    if(proc->pagesinmem >= MAX_PSYC_PAGES) {
+      if ((l = writePageToSwapFile()) == 0)
+        panic("allocuvm: error writing page to swap file");
+      l->va = a;
+      l->next = proc->head;
+      proc->head = l;
       newpage = 0;
-      goto writtentoswapfile;
     }
     mem = kalloc();
-writtentoswapfile:
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, newsz, oldsz);
@@ -473,9 +478,11 @@ void swapPages(uint addr) {
     proc->pagesinmem++;
     return;
   }
+
+  // PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM
   if ((buf = kalloc()) == 0)
     panic("swapPages: no free kernel page for buf");
-
+    // PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM PROBLEM 
 #if SELECTION==FIFO
   struct freepg *link = proc->head;
   struct freepg *l;
