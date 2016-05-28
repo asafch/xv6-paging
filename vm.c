@@ -216,6 +216,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 }
 
 void recordNewPage(char *va) {
+  //cprintf("page recorded: %x, name: %s\n", va, proc->name);
   int i;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
     if (proc->freepages[i].va == 0)
@@ -403,9 +404,37 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 }
 
 void swapPages(uint addr) {
-  if (strcmp(proc->name, "init") != 0 && strcmp(proc->name, "sh") != 0)
+  if (strcmp(proc->name, "init") == 0 || strcmp(proc->name, "sh") == 0) {
+    proc->pagesinmem++;
     return;
-  // TODO implement paging policies
+  }
+
+  #ifdef FIFO
+  struct freepg *link = proc->head;
+  struct freepg *l;
+  if (link == 0)
+    panic("swapPages: proc->head is NULL");
+  if (link->next == 0)
+    panic("swapPages: single page in phys mem");
+  // find the before-last link in the used pages list
+  while (link->next->next != 0)
+    link = link->next;
+  l = link->next;
+  link->next = 0;
+  l->next = proc->head;
+  proc->head = l;
+
+  #else
+  #ifdef FIFOSC
+
+  #else
+  #ifdef NFU
+
+  #else
+
+  #endif
+  #endif
+  #endif
   proc->totalPagedOutCount++;
 }
 

@@ -197,7 +197,6 @@ fork(void)
   char buf[PGSIZE / 2] = "";
   int offset = 0;
   int nread = 0;
-  // pid=2 is sh, so the parent, init (pid=1) has no swap file to copy.
   // read the parent's swap file in chunks of size PGDIR/2, otherwise for some
   // reason, you get "panic acquire" if buf is ~4000 bytes
   if (strcmp(proc->name, "init") != 0 && strcmp(proc->name, "sh") != 0) {
@@ -236,7 +235,7 @@ printProcMemPageInfo(struct proc *proc){
     state = "???";
 
   // regular xv6 procdump printing
-  cprintf("\n %d %s %s\n", proc->pid, state, proc->name);
+  cprintf("\npid:%d state:%s name:%s\n", proc->pid, state, proc->name);
 
   //print out memory pages info:
   cprintf("Allocated memory pages: %d,\n", proc->pagesinmem);
