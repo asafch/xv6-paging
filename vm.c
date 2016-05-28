@@ -365,13 +365,18 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
-    if(proc->pagesinmem + proc->pagesinswapfile >= MAX_TOTAL_PAGES)
-      panic("allocuvm: MAX_TOTAL_PAGES exceeded");
+    if (strcmp(proc->name, "init") != 0 && strcmp(proc->name, "sh") != 0){// pagging stuff
 
-    if(proc->pagesinmem >= MAX_PSYC_PAGES){
-      page = selectPageToSwap();
-      pageOut(page);
+      if(proc->pagesinmem + proc->pagesinswapfile >= MAX_TOTAL_PAGES)
+        panic("allocuvm: MAX_TOTAL_PAGES exceeded");
+
+      if(proc->pagesinmem >= MAX_PSYC_PAGES){
+        page = selectPageToSwap();
+        pageOut(page);
+      }
+      recordNewPage(mem);
     }
+
     //continue as usual
     mem = kalloc();
     // TODO delete cprintf("allocuvm: %d, pid %d\n", proc->pagesNo, proc->pid);
@@ -381,12 +386,8 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       // TODO delete proc->pagesNo--;
       return 0;
     }
-    //uint va = PTE_ADDR(mem);
-    //updatePagesForProc(va);
-    recordNewPage(mem);
     memset(mem, 0, PGSIZE);
     mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
-    proc->pagesinmem++;
   }
   return newsz;
 }
