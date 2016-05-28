@@ -4,27 +4,30 @@
 #include "syscall.h"
 
 #define PGSIZE 4096
+#define SIZE 20
 
 int
 main(int argc, char *argv[]){
 	//printf(1, "hello myMemTest, argc = %d \n", argc);
-	int i, size = 5;
-	char *arr[size];
+	int i;
+	char *arr[SIZE];
 	char input[10];
 
-	for (i = 0; i < size; ++i)
+	for (i = 0; i < 12; ++i)
 	{
-		arr[i] = (char*) malloc(PGSIZE);
+		arr[i] = sbrk(PGSIZE);
 	}
-
-	printf(1, "called malloc(PGSIZE) %d times. press any key to free the memory.\n", size);
+	printf(1, "called sbrk(PGSIZE) 12 times, press any key...\n");
+	gets(input, 10);
+	arr[12] = sbrk(PGSIZE);
+	printf(1, "called sbrk(PGSIZE) for the 13th time, page replacement algorithm should have completed successfuly, press any key...\n");
 	gets(input, 10);
 
-	for (i = 0; i < size; ++i)
+	for (i = 0; i < SIZE; ++i)
 	{
 		free(arr[i]);
 	}
-	printf(1, "should have freed all memory allocated by malloc()s. check with ^p \npress any key to exit function.\n");
+	printf(1, "should have freed all memory allocated by sbrk(), check with ^p\nPress any key to exit function.\n");
 
 	gets(input, 10);
 

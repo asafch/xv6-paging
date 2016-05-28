@@ -35,10 +35,32 @@ exec(char *path, char **argv)
   if((pgdir = setupkvm()) == 0)
     goto bad;
 
-  // Load program into memory.
-  // TODO delete cprintf("exec pid %d\n", proc->pid);
-  int oldpagesno = proc->pagesinmem;
+
+  // backup and reset proc fields
+  int pagesinmem = proc->pagesinmem;
+  int pagesinswapfile = proc->pagesinswapfile;
+  int totalPageFaultCount = proc->totalPageFaultCount;
+  int totalPagedOutCount = proc->totalPagedOutCount;
+  struct freepg freepages[MAX_PSYC_PAGES];
+  struct pgdesc swappedpages[MAX_PSYC_PAGES];
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    freepages[i].va = proc->freepages[i].va;
+    proc->freepages[i].va = 0;
+    freepages[i].next = proc->freepages[i].next;
+    proc->freepages[i].next = 0;
+    swappedpages[i].va = proc->swappedpages[i].va;
+    proc->swappedpages[i].va = 0;
+    swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
+    proc->swappedpages[i].swaploc = 0;
+  }
+  struct freepg *head = proc->head;
   proc->pagesinmem = 0;
+  proc->pagesinswapfile = 0;
+  proc->totalPageFaultCount = 0;
+  proc->totalPagedOutCount = 0;
+  proc->head = 0;
+
+  // Load program into memory.
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
@@ -102,7 +124,7 @@ exec(char *path, char **argv)
   switchuvm(proc);
   // TODO delete cprintf("freevm(oldpgdir)\n");
   freevm(oldpgdir);
-  cprintf("no. pages allocated on exec: %d, pid %d\n", proc->pagesinmem, proc->pid);
+  cprintf("no. of pages allocated on exec:%d, pid:%d, name:%s\n", proc->pagesinmem, proc->pid, proc->name);
   return 0;
 
  bad:
@@ -112,6 +134,16 @@ exec(char *path, char **argv)
     iunlockput(ip);
     end_op();
   }
-  proc->pagesinmem = oldpagesno;
+  proc->pagesinmem = pagesinmem;
+  proc->pagesinswapfile = pagesinswapfile;
+  proc->totalPageFaultCount = totalPageFaultCount;
+  proc->totalPagedOutCount = totalPagedOutCount;
+  proc->head = head;
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    proc->freepages[i].va = freepages[i].va;
+    proc->freepages[i].next = freepages[i].next;
+    proc->swappedpages[i].va = swappedpages[i].va;
+    proc->swappedpages[i].swaploc = swappedpages[i].swaploc;
+  }
   return -1;
 }

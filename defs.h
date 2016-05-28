@@ -107,7 +107,6 @@ int             pipewrite(struct pipe*, char*, int);
 
 //PAGEBREAK: 16
 // proc.c
-int             strcmp(const char *, const char *);
 struct proc*    copyproc(struct proc*);
 void            exit(void);
 int             fork(void);
@@ -147,6 +146,7 @@ char*           safestrcpy(char*, const char*, int);
 int             strlen(const char*);
 int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
+int             strcmp(const char *, const char *);
 
 // syscall.c
 int             argint(int, int*);

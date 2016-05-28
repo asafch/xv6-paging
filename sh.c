@@ -155,23 +155,23 @@ main(void)
     }
   }
 
-  #ifdef NONE
+  #if SELECTION==NONE
   printf(1, "Paging policy: NONE\n");
   #else
-  #ifdef NFU
+  #if SELECTION==NFU
   printf(1, "Paging policy: NFU\n");
   #else
-  #ifdef FIFO
+  #if SELECTION==FIFO
   printf(1, "Paging policy: FIFO\n");
   #else
-  #ifdef SCFIFO
+  #if SELECTION==SCFIFO
   printf(1, "Paging policy: SCFIFO\n");
   #endif
   #endif
   #endif
   #endif
 
-  #ifdef TRUE
+  #if VERBOSE_PRINT==TRUE
   printf(1, "Verbose printing selected.\n");
   #endif
 

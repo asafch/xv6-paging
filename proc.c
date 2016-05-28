@@ -21,14 +21,6 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-int
-strcmp(const char *p, const char *q)
-{
-  while(*p && *p == *q)
-    p++, q++;
-  return (uchar)*p - (uchar)*q;
-}
-
 void
 pinit(void)
 {
@@ -241,7 +233,7 @@ printProcMemPageInfo(struct proc *proc){
   cprintf("Allocated memory pages: %d,\n", proc->pagesinmem);
   cprintf("No. of pages currently paged out: %d,\n", proc->pagesinswapfile);
   cprintf("Total No. of page faults: %d,\n", proc->totalPageFaultCount);
-  cprintf("Total number of paged out pages: %d,\n", proc->totalPagedOutCount);
+  cprintf("Total number of paged out pages: %d,\n\n", proc->totalPagedOutCount);
 
   // regular xv6 procdump printing
   if(proc->state == SLEEPING){
@@ -249,7 +241,6 @@ printProcMemPageInfo(struct proc *proc){
     for(i=0; i<10 && pc[i] != 0; i++)
       cprintf(" %p", pc[i]);
   }
-
 }
 
 // Exit the current process.  Does not return.
@@ -275,7 +266,7 @@ exit(void)
   if (removeSwapFile(proc) != 0)
     panic("exit: error deleting swap file");
 
-  #ifdef TRUE
+  #if VERBOSE_PRINT==TRUE
   // sending proc as arg just to share func with procdump
   printProcMemPageInfo(proc);
   #endif
@@ -546,6 +537,6 @@ procdump(void)
 
   // print general (not per-process) physical memory pages info
   percent = physPagesCounts.currentFreePagesNo * 100 / physPagesCounts.initPagesNo;
-  cprintf("\n\npercent of free physical pages: %d / %d ~ 0.%d \n",  physPagesCounts.currentFreePagesNo,
+  cprintf("\n\nPercent of free physical pages: %d/%d ~ 0.%d%% \n",  physPagesCounts.currentFreePagesNo,
                                                                     physPagesCounts.initPagesNo , percent);
 }
