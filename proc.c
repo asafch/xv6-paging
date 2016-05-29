@@ -74,16 +74,17 @@ found:
 
   // initialize process's page data
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
-    p->freepages[i].va = 0;
+    p->freepages[i].va = (char*)0xffffffff;
     p->freepages[i].next = 0;
     p->swappedpages[i].swaploc = 0;
-    p->swappedpages[i].va = 0;
+    p->swappedpages[i].va = (char*)0xffffffff;
   }
   p->pagesinmem = 0;
   p->pagesinswapfile = 0;
   p->totalPageFaultCount = 0;
   p->totalPagedOutCount = 0;
   p->head = 0;
+  p->oldEIP = ~0;
 
   return p;
 }
@@ -134,6 +135,7 @@ growproc(int n)
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
     proc->pagesinmem -= ((PGROUNDUP(sz) - PGROUNDUP(proc->sz)) % PGSIZE);
+    // TODO update proc->freepages
   }
   proc->sz = sz;
   switchuvm(proc);
@@ -394,6 +396,7 @@ sched(void)
 
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
+  // cprintf("ncli:%d\n", cpu->ncli);//TODO delete
   if(cpu->ncli != 1)
     panic("sched locks");
   if(proc->state == RUNNING)

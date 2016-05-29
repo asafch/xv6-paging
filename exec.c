@@ -45,15 +45,16 @@ exec(char *path, char **argv)
   struct pgdesc swappedpages[MAX_PSYC_PAGES];
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
     freepages[i].va = proc->freepages[i].va;
-    proc->freepages[i].va = 0;
+    proc->freepages[i].va = (char*)0xffffffff;
     freepages[i].next = proc->freepages[i].next;
     proc->freepages[i].next = 0;
     swappedpages[i].va = proc->swappedpages[i].va;
-    proc->swappedpages[i].va = 0;
+    proc->swappedpages[i].va = (char*)0xffffffff;
     swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
     proc->swappedpages[i].swaploc = 0;
   }
   struct freepg *head = proc->head;
+  uint oldEIP = proc->oldEIP;
   proc->pagesinmem = 0;
   proc->pagesinswapfile = 0;
   proc->totalPageFaultCount = 0;
@@ -145,5 +146,6 @@ exec(char *path, char **argv)
     proc->swappedpages[i].va = swappedpages[i].va;
     proc->swappedpages[i].swaploc = swappedpages[i].swaploc;
   }
+  proc->oldEIP = oldEIP;
   return -1;
 }

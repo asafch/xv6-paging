@@ -89,12 +89,15 @@ trap(struct trapframe *tf)
     cprintf("&PTE_PG:%x &PTE_P:%x\n", (((uint*)PTE_ADDR(P2V(*vaddr)))[PTX(addr)] & PTE_PG), ((((uint*)PTE_ADDR(P2V(*vaddr)))[PTX(addr)] & PTE_P))); //TODO delete
     if (((int)(*vaddr) & PTE_P) != 0) { // if page table isn't present at page directory -> hard page fault
       if (((uint*)PTE_ADDR(P2V(*vaddr)))[PTX(addr)] & PTE_PG) { // if the page is in the process's swap file
+        if (proc->oldEIP == ~0)
+          proc->oldEIP = proc->tf->eip;
         cprintf("page is in swap file, pid %d, va %p\n", proc->pid, addr); //TODO delete
-        swapPages(addr);
+        swapPages(PTE_ADDR(addr));
         proc->totalPageFaultCount++;
+        cprintf("swapPages returned\n"); //TODO delete
+        proc->tf->eip = proc->oldEIP;
         return;
       }
-      cprintf("shit\n"); //TODO delete
     }
   //PAGEBREAK: 13
   default:

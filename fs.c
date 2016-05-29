@@ -772,7 +772,7 @@ int
 writeToSwapFile(struct proc * p, char* buffer, uint placeOnFile, uint size)
 {
 	p->swapFile->off = placeOnFile;
-
+  cprintf("writeToSwapFile: buffer:0x%x placeOnFile:%x size:%d\n", buffer, placeOnFile, size);//TODO delete
 	return filewrite(p->swapFile, buffer, size);
 
 }
@@ -782,6 +782,6 @@ int
 readFromSwapFile(struct proc * p, char* buffer, uint placeOnFile, uint size)
 {
 	p->swapFile->off = placeOnFile;
-
+  cprintf("readFromSwapFile: buffer:0x%x placeOnFile:%x size:%d\n", buffer, placeOnFile, size);//TODO delete
 	return fileread(p->swapFile, buffer,  size);
 }

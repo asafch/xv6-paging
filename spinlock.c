@@ -99,7 +99,6 @@ void
 pushcli(void)
 {
   int eflags;
-
   eflags = readeflags();
   cli();
   if(cpu->ncli++ == 0)
