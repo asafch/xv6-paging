@@ -266,11 +266,10 @@ foundswappedpageslot:
   l = link->next;
   link->next = 0;
   proc->swappedpages[i].va = l->va;
-  kfree((char*)PTE_ADDR(P2V_WO(*walkpgdir(proc->pgdir, l->va, 0))));
   int num = 0;
   if ((num = writeToSwapFile(proc, (char*)PTE_ADDR(l->va), i * PGSIZE, PGSIZE)) == 0)
     return 0;
-  cprintf("written %d bytes to swap file, pid:%d, va:0x%x\n", num, proc->pid, l->va);//TODO delete
+  // cprintf("written %d bytes to swap file, pid:%d, va:0x%x\n", num, proc->pid, l->va);//TODO delete
   pte_t *pte1 = walkpgdir(proc->pgdir, (void*)l->va, 0);
   if (!*pte1)
     panic("writePageToSwapFile: pte1 is empty");
@@ -278,8 +277,9 @@ foundswappedpageslot:
   // // if (!*pte2)
   // //   panic("writePageToSwapFile: pte2 is empty");
   // *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_P | PTE_W;
+  kfree((char*)PTE_ADDR(P2V_WO(*walkpgdir(proc->pgdir, l->va, 0))));
   *pte1 = PTE_W | PTE_U | PTE_PG;
-  // lcr3(v2p(proc->pgdir));
+  lcr3(v2p(proc->pgdir));
   return l;
 
 #else
@@ -514,7 +514,6 @@ foundswappedslot:
     panic("swapFile: FIFO pte2 is empty");
   //set page table entry
   *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_W | PTE_P;
-  cprintf("l->va:0x%x\n", l->va);
   for (j = 0; j < 4; j++) {
     int loc = (i * PGSIZE) + ((PGSIZE / 4) * j);
     // cprintf("i:%d j:%d loc:0x%x\n", i,j,loc);//TODO delete
@@ -551,7 +550,6 @@ foundswappedslot:
 #endif
   lcr3(v2p(proc->pgdir));
   proc->totalPagedOutCount++;
-  cprintf("swap pages done\n");//TODO delete
 }
 
 //PAGEBREAK!

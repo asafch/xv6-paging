@@ -84,7 +84,6 @@ found:
   p->totalPageFaultCount = 0;
   p->totalPagedOutCount = 0;
   p->head = 0;
-  p->oldEIP = ~0;
 
   return p;
 }

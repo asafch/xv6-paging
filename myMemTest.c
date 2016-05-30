@@ -8,7 +8,7 @@
 
 int
 main(int argc, char *argv[]){
-	//printf(1, "hello myMemTest, argc = %d \n", argc);
+	printf(1, "hello\n");
 	int i;
 	char *arr[SIZE];
 	char input[10];
@@ -23,7 +23,6 @@ main(int argc, char *argv[]){
 	arr[12] = sbrk(PGSIZE);
 	printf(1, "called sbrk(PGSIZE) for the 13th time, page replacement algorithm should have completed successfuly, press any key...\n");
 	gets(input, 10);
-	printf(1, "arr%s\n", arr[0]);
 	// for (i = 0; i < 13; ++i) {
 	// 	for (j = 0; j < PGSIZE; j++)
 	// 		arr[i][j] = 'k';

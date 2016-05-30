@@ -54,7 +54,6 @@ exec(char *path, char **argv)
     proc->swappedpages[i].swaploc = 0;
   }
   struct freepg *head = proc->head;
-  uint oldEIP = proc->oldEIP;
   proc->pagesinmem = 0;
   proc->pagesinswapfile = 0;
   proc->totalPageFaultCount = 0;
@@ -146,6 +145,5 @@ exec(char *path, char **argv)
     proc->swappedpages[i].va = swappedpages[i].va;
     proc->swappedpages[i].swaploc = swappedpages[i].swaploc;
   }
-  proc->oldEIP = oldEIP;
   return -1;
 }
