@@ -279,8 +279,6 @@ foundswappedpageslot:
   // *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_P | PTE_W;
   kfree((char*)PTE_ADDR(P2V_WO(*walkpgdir(proc->pgdir, l->va, 0))));
   *pte1 = PTE_W | PTE_U | PTE_PG;
-  lcr3(v2p(proc->pgdir));
-  return l;
 
 #else
 
@@ -293,6 +291,12 @@ foundswappedpageslot:
 #endif
 #endif
 #endif
+  ++proc->totalPagedOutCount;
+  ++proc->pagesinswapfile;
+  // cprintf("writePage:proc->totalPagedOutCount:%d\n", ++proc->totalPagedOutCount);//TODO delete
+  // cprintf("writePage:proc->pagesinswapfile:%d\n", ++proc->pagesinswapfile);//TODO delete
+  lcr3(v2p(proc->pgdir));
+  return l;
 }
 
 // Allocate page tables and physical memory to grow process from oldsz to
@@ -549,7 +553,8 @@ foundswappedslot:
 #endif
 #endif
   lcr3(v2p(proc->pgdir));
-  proc->totalPagedOutCount++;
+  ++proc->totalPagedOutCount;
+  // cprintf("swapPages:proc->totalPagedOutCount:%d\n", ++proc->totalPagedOutCount);//TODO delete
 }
 
 //PAGEBREAK!
