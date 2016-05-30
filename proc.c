@@ -267,7 +267,7 @@ exit(void)
   if (removeSwapFile(proc) != 0)
     panic("exit: error deleting swap file");
 
-  #if VERBOSE_PRINT==TRUE
+  #if TRUE
   // sending proc as arg just to share func with procdump
   printProcMemPageInfo(proc);
   #endif

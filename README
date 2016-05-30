@@ -1,3 +1,21 @@
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+xv6 memory paging
+
+
+This project is part of an Operating Systems course taken in BGU. We introduce a 2-level paging mechanism. There are 4 paging policies: NONE, FIFO, SCFIFO and NFU.
+These policies are invoked with the SELECTION flag when launching, i.e.
+
+$ make qemu SELECTION=FIFO
+
+If the flag isn't defined at launch, then NFU is used.
+
+For further information, consult the assignment description at https://www.cs.bgu.ac.il/~os162/Assignments/Assignment_3
+
+The original README is left intact below.
+
+Copyright 2016 Asaf Chelouche, Asaf Benjamin
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern x86-based multiprocessor using ANSI C.

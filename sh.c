@@ -154,25 +154,18 @@ main(void)
       break;
     }
   }
-  #if SELECTION == 5
-  printf(1, "Paging policy: NO24r124NE\n");
-  #endif
 
-  #if SELECTION == FIFO
+  #if FIFO
   printf(1, "Paging policy: FIFO\n");
-  #else
-  #if SELECTION == SCFIFO
+  #elif SCFIFO
   printf(1, "Paging policy: SCFIFO\n");
-  #else
-  #if SELECTION == NFU
+  #elif NFU
   printf(1, "Paging policy: NFU\n");
   #else
-  printf(1, "Paging policy: NFU\n");
-  #endif
-  #endif
+  printf(1, "Paging policy: NONE\n");
   #endif
 
-  #if VERBOSE_PRINT == TRUE
+  #if TRUE
   printf(1, "Verbose printing selected.\n");
   #endif
 

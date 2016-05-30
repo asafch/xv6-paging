@@ -218,9 +218,8 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 }
 
 void recordNewPage(char *va) {
-  // TODO delete if (proc->pid > 2) cprintf("recordNewPage: %x, name: %s, pagesinmem:%d\n", va, proc->name, proc->pagesinmem);
+#if FIFO
   int i;
-#if SELECTION==FIFO
 //TODO delete cprintf("rnp pid:%d count:%d va:0x%x\n", proc->pid, proc->pagesinmem, va);
   for (i = 0; i < MAX_PSYC_PAGES; i++)
     if (proc->freepages[i].va == (char*)0xffffffff)
@@ -233,11 +232,11 @@ foundrnp:
   proc->head = &proc->freepages[i];
 #else
 
-#if SELECTION==SCFIFO
+#if SCFIFO
   // TODO implement
 #else
 
-#if SELECTION==NFU
+#if NFU
   // TODO implement
 #endif
 #endif
@@ -246,8 +245,8 @@ foundrnp:
 }
 
 struct freepg *writePageToSwapFile(void) {
+#if FIFO
   int i;
-#if SELECTION==FIFO
   struct freepg *link, *l;
   for (i = 0; i < MAX_PSYC_PAGES; i++){
     if (proc->swappedpages[i].va == (char*)0xffffffff)
@@ -279,24 +278,26 @@ foundswappedpageslot:
   // *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_P | PTE_W;
   kfree((char*)PTE_ADDR(P2V_WO(*walkpgdir(proc->pgdir, l->va, 0))));
   *pte1 = PTE_W | PTE_U | PTE_PG;
-
-#else
-
-#if SELECTION==SCFIFO
-  // TODO imlement
-#else
-
-#if SELECTION==NFU
-  // TODO imlement
-#endif
-#endif
-#endif
   ++proc->totalPagedOutCount;
   ++proc->pagesinswapfile;
   // cprintf("writePage:proc->totalPagedOutCount:%d\n", ++proc->totalPagedOutCount);//TODO delete
   // cprintf("writePage:proc->pagesinswapfile:%d\n", ++proc->pagesinswapfile);//TODO delete
   lcr3(v2p(proc->pgdir));
   return l;
+#else
+
+#if SCFIFO
+  // TODO implement
+  return 0;
+#else
+
+#if NFU
+  // TODO implement
+  return 0;
+#endif
+#endif
+#endif
+  return 0;
 }
 
 // Allocate page tables and physical memory to grow process from oldsz to
@@ -305,8 +306,12 @@ int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   char *mem;
+  uint a;
+
+#ifndef NONE
+  uint newpage = 1;
   struct freepg *l;
-  uint a, newpage = 1;
+#endif
 
   if(newsz >= KERNBASE)
     return 0;
@@ -315,6 +320,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+#ifndef NONE
     if(proc->pagesinmem >= MAX_PSYC_PAGES) {
       if ((l = writePageToSwapFile()) == 0)
         panic("allocuvm: error writing page to swap file");
@@ -323,6 +329,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       proc->head = l;
       newpage = 0;
     }
+#endif
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
@@ -330,8 +337,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       // TODO delete proc->pagesNo--;
       return 0;
     }
+    #ifndef NONE
     if (newpage)
       recordNewPage((char*)a);
+    #endif
     memset(mem, 0, PGSIZE);
     mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
   }
@@ -478,6 +487,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 }
 
 void swapPages(uint addr) {
+#if FIFO
   int i, j;
   char buf[BUF_SIZE];
   pte_t *pte1, *pte2;
@@ -485,8 +495,6 @@ void swapPages(uint addr) {
     proc->pagesinmem++;
     return;
   }
-
-#if SELECTION==FIFO
   struct freepg *link = proc->head;
   struct freepg *l;
   if (link == 0)
@@ -543,11 +551,11 @@ foundswappedslot:
   l->va = (char*)PTE_ADDR(addr);
 #else
 
-#if SELECTION==SCFIFO
+#if SCFIFO
   // TODO implement
 #else
 
-#if SELECTION==NFU
+#if NFU
   //TODO implement
 #endif
 #endif

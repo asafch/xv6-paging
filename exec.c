@@ -37,6 +37,7 @@ exec(char *path, char **argv)
 
 
   // backup and reset proc fields
+#ifndef NONE
   int pagesinmem = proc->pagesinmem;
   int pagesinswapfile = proc->pagesinswapfile;
   int totalPageFaultCount = proc->totalPageFaultCount;
@@ -59,6 +60,7 @@ exec(char *path, char **argv)
   proc->totalPageFaultCount = 0;
   proc->totalPagedOutCount = 0;
   proc->head = 0;
+#endif
 
   // Load program into memory.
   sz = 0;
@@ -134,6 +136,7 @@ exec(char *path, char **argv)
     iunlockput(ip);
     end_op();
   }
+#ifndef NONE
   proc->pagesinmem = pagesinmem;
   proc->pagesinswapfile = pagesinswapfile;
   proc->totalPageFaultCount = totalPageFaultCount;
@@ -145,5 +148,6 @@ exec(char *path, char **argv)
     proc->swappedpages[i].va = swappedpages[i].va;
     proc->swappedpages[i].swaploc = swappedpages[i].swaploc;
   }
+#endif
   return -1;
 }
