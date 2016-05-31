@@ -76,6 +76,7 @@ found:
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
     p->freepages[i].va = (char*)0xffffffff;
     p->freepages[i].next = 0;
+    p->freepages[i].prev = 0;
     p->swappedpages[i].swaploc = 0;
     p->swappedpages[i].va = (char*)0xffffffff;
   }
@@ -84,6 +85,7 @@ found:
   p->totalPageFaultCount = 0;
   p->totalPagedOutCount = 0;
   p->head = 0;
+  p->tail = 0;
 
   return p;
 }

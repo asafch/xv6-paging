@@ -62,6 +62,7 @@ struct pgdesc {
 struct freepg {
   char *va;
   struct freepg *next;
+  struct freepg *prev;
 };
 
 // Per-process state
@@ -90,6 +91,7 @@ struct proc {
   struct freepg freepages[MAX_PSYC_PAGES];  // Pre-allocated space for the pages in physical memory linked list
   struct pgdesc swappedpages[MAX_PSYC_PAGES];// Pre-allocated space for the pages in swap file array
   struct freepg *head;        // Head of the pages in physical memory linked list
+  struct freepg *tail;        // End of the pages in physical memory linked list
 };
 
 // Process memory is laid out contiguously, low addresses first:

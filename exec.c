@@ -38,6 +38,7 @@ exec(char *path, char **argv)
 
   // backup and reset proc fields
 #ifndef NONE
+  cprintf("EXEC: backing up page info \n");
   int pagesinmem = proc->pagesinmem;
   int pagesinswapfile = proc->pagesinswapfile;
   int totalPageFaultCount = proc->totalPageFaultCount;
@@ -49,17 +50,21 @@ exec(char *path, char **argv)
     proc->freepages[i].va = (char*)0xffffffff;
     freepages[i].next = proc->freepages[i].next;
     proc->freepages[i].next = 0;
+    freepages[i].prev = proc->freepages[i].prev;
+    proc->freepages[i].prev = 0;
     swappedpages[i].va = proc->swappedpages[i].va;
     proc->swappedpages[i].va = (char*)0xffffffff;
     swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
     proc->swappedpages[i].swaploc = 0;
   }
   struct freepg *head = proc->head;
+  struct freepg *tail = proc->tail;
   proc->pagesinmem = 0;
   proc->pagesinswapfile = 0;
   proc->totalPageFaultCount = 0;
   proc->totalPagedOutCount = 0;
   proc->head = 0;
+  proc->tail = 0;
 #endif
 
   // Load program into memory.
@@ -142,9 +147,11 @@ exec(char *path, char **argv)
   proc->totalPageFaultCount = totalPageFaultCount;
   proc->totalPagedOutCount = totalPagedOutCount;
   proc->head = head;
+  proc->tail = tail;
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
     proc->freepages[i].va = freepages[i].va;
     proc->freepages[i].next = freepages[i].next;
+    proc->freepages[i].prev = freepages[i].prev;
     proc->swappedpages[i].va = swappedpages[i].va;
     proc->swappedpages[i].swaploc = swappedpages[i].swaploc;
   }
