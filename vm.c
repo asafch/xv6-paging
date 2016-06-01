@@ -8,6 +8,7 @@
 #include "elf.h"
 
 #define BUF_SIZE PGSIZE/4
+#define MAX_POSSIBLE ~0x80000000
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -266,11 +267,23 @@ foundrnp:
   else//head == 0 so first link inserted is also the tail
     proc->tail = &proc->freepages[i];
   proc->head = &proc->freepages[i];
+}
 
-
+void nfuRecord(char *va){
+  int i;
+  //TODO delete cprintf("nfuRecord!\n");
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+    if (proc->freepages[i].va == (char*)0xffffffff)
+      goto foundrnp;
+  cprintf("panic follows, pid:%d, name:%s\n", proc->pid, proc->name);
+  panic("recordNewPage: no free pages");
+foundrnp:
+  //TODO delete cprintf("found unused page!\n");
+  proc->freepages[i].va = va;
 }
 
 void recordNewPage(char *va) {
+  //TODO delete $$$
 
 #if FIFO
   fifoRecord(va);
@@ -281,7 +294,7 @@ void recordNewPage(char *va) {
 #else
 
 #if NFU
-  // TODO implement
+  nfuRecord(va);
 #endif
 #endif
 #endif
@@ -335,7 +348,7 @@ int checkAccBit(char *va){
   uint accessed;
   pte_t *pte = walkpgdir(proc->pgdir, (void*)va, 0);
   if (!*pte)
-    panic("writePageToSwapFile: pte1 is empty");
+    panic("checkAccBit: pte1 is empty");
   accessed = (*pte) & PTE_A;
   (*pte) &= ~PTE_A;
   return accessed;
@@ -395,7 +408,59 @@ foundswappedpageslot:
   return proc->head;
 }
 
+struct freepg *nfuWrite(char *va) {
+  int i, j;
+  uint minIndx = -1, minAge = MAX_POSSIBLE;
+  struct freepg *chosen;
+
+  for (i = 0; i < MAX_PSYC_PAGES; i++){
+    if (proc->swappedpages[i].va == (char*)0xffffffff)
+      goto foundswappedpageslot;
+  }
+  panic("writePageToSwapFile: FIFO no slot for swapped page");
+
+foundswappedpageslot:
+  for (j = 0; j < MAX_PSYC_PAGES; j++)
+    if (proc->freepages[j].va != (char*)0xffffffff){
+      //TODO delete      if(proc->freepages[j].age > 0)        cprintf("i=%d, age=%d, || ", j, proc->freepages[j].age);
+      if (proc->freepages[j].age < minAge){//TODO <= not <
+        minAge = proc->freepages[j].age;
+        minIndx = j;
+      }
+    }
+
+  if(minIndx == -1)
+    panic("nfuSwap: no free page to swap???");
+  chosen = &proc->freepages[minIndx];
+
+      //TODO delete      cprintf("\nchose to write va = %d, age = %d \n", chosen->va, chosen->age);
+
+  //make swap
+  proc->swappedpages[i].va = chosen->va;
+  int num = 0;
+  if ((num = writeToSwapFile(proc, (char*)PTE_ADDR(chosen->va), i * PGSIZE, PGSIZE)) == 0)
+    return 0;
+
+  pte_t *pte1 = walkpgdir(proc->pgdir, (void*)chosen->va, 0);
+  if (!*pte1)
+    panic("writePageToSwapFile: pte1 is empty");
+
+  kfree((char*)PTE_ADDR(P2V_WO(*walkpgdir(proc->pgdir, chosen->va, 0))));
+  *pte1 = PTE_W | PTE_U | PTE_PG;
+  ++proc->totalPagedOutCount;
+  ++proc->pagesinswapfile;
+
+  //TODO delete   cprintf("++proc->pagesinswapfile : %d", proc->pagesinswapfile);
+
+  lcr3(v2p(proc->pgdir));
+  chosen->va = va;
+
+  // unnecessary but will do for now
+  return chosen;
+}
+
 struct freepg *writePageToSwapFile(char* va) {
+  //TODO delete $$$
 
 #if FIFO
   return fifoWrite();
@@ -406,8 +471,7 @@ struct freepg *writePageToSwapFile(char* va) {
 #else
 
 #if NFU
-  // TODO implement
-  return 0;
+  return nfuWrite(va);
 #endif
 #endif
 #endif
@@ -753,6 +817,77 @@ foundswappedpageslot:
 
 }
 
+void nfuSwap(uint addr) {
+  int i, j;
+  uint minIndx = -1, minAge = MAX_POSSIBLE;
+  char buf[BUF_SIZE];
+  pte_t *pte1, *pte2;
+  struct freepg *chosen;
+
+  //TODO delete   cprintf("MAX_POSSIBLE = %d\n", MAX_POSSIBLE);
+
+  for (j = 0; j < MAX_PSYC_PAGES; j++)
+    if (proc->freepages[j].va != (char*)0xffffffff){
+      //TODO delete      if(proc->freepages[j].age > 0)      cprintf("i=%d, age=%d, || ", j, proc->freepages[j].age);
+      if (proc->freepages[j].age < minAge){//TODO should be <= not < just wanted to see different indexes than 14
+        minAge = proc->freepages[j].age;
+        minIndx = j;
+      }
+    }
+
+  if(minIndx == -1)
+    panic("nfuSwap: no free page to swap???");
+  chosen = &proc->freepages[minIndx];
+
+      //TODO delete      cprintf("\nchose to swap va = %d, age = %d \n", chosen->va, chosen->age);
+
+  //find the address of the page table entry to copy into the swap file
+  pte1 = walkpgdir(proc->pgdir, (void*)chosen->va, 0);
+  if (!*pte1)
+    panic("nfuSwap: pte1 is empty");
+
+  //find a swap file page descriptor slot
+  for (i = 0; i < MAX_PSYC_PAGES; i++){
+    if (proc->swappedpages[i].va == (char*)PTE_ADDR(addr))
+      goto foundswappedpageslot;
+  }
+  panic("nfuSwap: no slot for swapped page");
+
+foundswappedpageslot:
+
+  proc->swappedpages[i].va = chosen->va;
+  //assign the physical page to addr in the relevant page table
+  pte2 = walkpgdir(proc->pgdir, (void*)addr, 0);
+  if (!*pte2)
+    panic("nfuSwap: pte2 is empty");
+  //set page table entry
+  //TODO verify we're not setting PTE_U where we shouldn't be...
+  *pte2 = PTE_ADDR(*pte1) | PTE_U | PTE_W | PTE_P;// access bit is zeroed...
+
+  for (j = 0; j < 4; j++) {
+    int loc = (i * PGSIZE) + ((PGSIZE / 4) * j);
+    // cprintf("i:%d j:%d loc:0x%x\n", i,j,loc);//TODO delete
+    int addroffset = ((PGSIZE / 4) * j);
+    // int read, written;
+    memset(buf, 0, BUF_SIZE);
+    //copy the new page from the swap file to buf
+    // read =
+    readFromSwapFile(proc, buf, loc, BUF_SIZE);
+    // cprintf("read:%d\n", read);//TODO delete
+    //copy the old page from the memory to the swap file
+    //written =
+    writeToSwapFile(proc, (char*)(P2V_WO(PTE_ADDR(*pte1)) + addroffset), loc, BUF_SIZE);
+    // cprintf("written:%d\n", written);//TODO delete
+    //copy the new page from buf to the memory
+    memmove((void*)(PTE_ADDR(addr) + addroffset), (void*)buf, BUF_SIZE);
+  }
+  //update the page table entry flags, reset the physical page address
+  *pte1 = PTE_U | PTE_W | PTE_PG;
+  //update l to hold the new va
+  //l->next = proc->head;
+  //proc->head = l;
+  chosen->va = (char*)PTE_ADDR(addr);
+}
 
 void swapPages(uint addr) {
   //TODO delet   cprintf("resched swapPages!\n");
@@ -760,19 +895,18 @@ void swapPages(uint addr) {
     proc->pagesinmem++;
     return;
   }
+//TODO delete $$$
 
-  scSwap(addr);
 #if FIFO
   fifoSwap(addr);
 #else
 
 #if SCFIFO
-  // TODO implement
   scSwap(addr);
 #else
 
 #if NFU
-  //TODO implement
+  nfuSwap(addr);
 #endif
 #endif
 #endif

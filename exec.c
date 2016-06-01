@@ -38,7 +38,7 @@ exec(char *path, char **argv)
 
   // backup and reset proc fields
 #ifndef NONE
-  cprintf("EXEC: backing up page info \n");
+  //TODO delete cprintf("EXEC: backing up page info \n");
   int pagesinmem = proc->pagesinmem;
   int pagesinswapfile = proc->pagesinswapfile;
   int totalPageFaultCount = proc->totalPageFaultCount;
@@ -52,6 +52,10 @@ exec(char *path, char **argv)
     proc->freepages[i].next = 0;
     freepages[i].prev = proc->freepages[i].prev;
     proc->freepages[i].prev = 0;
+    freepages[i].age = proc->freepages[i].age;
+    proc->freepages[i].age = 0;
+    swappedpages[i].age = proc->swappedpages[i].age;
+    proc->swappedpages[i].age = 0;
     swappedpages[i].va = proc->swappedpages[i].va;
     proc->swappedpages[i].va = (char*)0xffffffff;
     swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
@@ -152,6 +156,8 @@ exec(char *path, char **argv)
     proc->freepages[i].va = freepages[i].va;
     proc->freepages[i].next = freepages[i].next;
     proc->freepages[i].prev = freepages[i].prev;
+    proc->freepages[i].age = freepages[i].age;
+    proc->swappedpages[i].age = swappedpages[i].age;
     proc->swappedpages[i].va = swappedpages[i].va;
     proc->swappedpages[i].swaploc = swappedpages[i].swaploc;
   }

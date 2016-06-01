@@ -33,11 +33,6 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
-void
-NFUupdate(){
-  //TODO
-}
-
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)
@@ -59,6 +54,8 @@ trap(struct trapframe *tf)
   case T_IRQ0 + IRQ_TIMER:
     if(cpu->id == 0){
       acquire(&tickslock);
+
+      NFUupdate();
 
       #if NFU
         NFUupdate();

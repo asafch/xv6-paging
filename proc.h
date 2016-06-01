@@ -56,11 +56,13 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct pgdesc {
   uint swaploc;
+  int age;
   char *va;
 };
 
 struct freepg {
   char *va;
+  int age;
   struct freepg *next;
   struct freepg *prev;
 };
