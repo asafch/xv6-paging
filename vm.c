@@ -9,6 +9,8 @@
 
 #define BUF_SIZE PGSIZE/4
 #define MAX_POSSIBLE ~0x80000000
+//using 0x80000000 introduces "negative" numbers which r a pain in the ass!
+#define ADD_TO_AGE 0x40000000
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -410,7 +412,7 @@ foundswappedpageslot:
 
 struct freepg *nfuWrite(char *va) {
   int i, j;
-  uint minIndx = -1, minAge = MAX_POSSIBLE;
+  uint maxIndx = -1, maxAge = 0; //MAX_POSSIBLE;
   struct freepg *chosen;
 
   for (i = 0; i < MAX_PSYC_PAGES; i++){
@@ -423,27 +425,40 @@ foundswappedpageslot:
   for (j = 0; j < MAX_PSYC_PAGES; j++)
     if (proc->freepages[j].va != (char*)0xffffffff){
       //TODO delete      if(proc->freepages[j].age > 0)        cprintf("i=%d, age=%d, || ", j, proc->freepages[j].age);
-      if (proc->freepages[j].age < minAge){//TODO <= not <
-        minAge = proc->freepages[j].age;
-        minIndx = j;
+      if (proc->freepages[j].age > maxAge){//TODO <= not <
+        maxAge = proc->freepages[j].age;
+        maxIndx = j;
       }
+      //TODO delete else cprintf("proc->freepages[j].age = %d and maxAge = %d\n", proc->freepages[j].age, maxAge);
     }
 
-  if(minIndx == -1)
-    panic("nfuSwap: no free page to swap???");
-  chosen = &proc->freepages[minIndx];
+  if(maxIndx == -1)
+    panic("nfuWrite: no free page to swap???");
+  chosen = &proc->freepages[maxIndx];
 
-      //TODO delete      cprintf("\nchose to write va = %d, age = %d \n", chosen->va, chosen->age);
+  //TODO delete  cprintf("\nchose to write va = 0x%x, age = %d \n", chosen->va, chosen->age);
+
+  pte_t *pte1 = walkpgdir(proc->pgdir, (void*)chosen->va, 0);
+  if (!*pte1)
+    panic("writePageToSwapFile: pte1 is empty");
+
+//  TODO verify: b4 accessing by writing to file,
+//  update accessed bit and age in case it misses a clock tick?
+//  be extra careful not to double add by locking  
+  acquire(&tickslock);
+  //TODO delete cprintf("acquire(&tickslock)\n");
+  if((*pte1) & PTE_A){
+    ++chosen->age;
+    *pte1 &= ~PTE_A;
+    cprintf("========\n\nWOW! Matan was right!\n(never saw this actually printed)=======\n\n");
+  }
+  release(&tickslock);
 
   //make swap
   proc->swappedpages[i].va = chosen->va;
   int num = 0;
   if ((num = writeToSwapFile(proc, (char*)PTE_ADDR(chosen->va), i * PGSIZE, PGSIZE)) == 0)
     return 0;
-
-  pte_t *pte1 = walkpgdir(proc->pgdir, (void*)chosen->va, 0);
-  if (!*pte1)
-    panic("writePageToSwapFile: pte1 is empty");
 
   kfree((char*)PTE_ADDR(P2V_WO(*walkpgdir(proc->pgdir, chosen->va, 0))));
   *pte1 = PTE_W | PTE_U | PTE_PG;
@@ -819,7 +834,7 @@ foundswappedpageslot:
 
 void nfuSwap(uint addr) {
   int i, j;
-  uint minIndx = -1, minAge = MAX_POSSIBLE;
+  uint maxIndx = -1, maxAge = 0;// MAX_POSSIBLE;
   char buf[BUF_SIZE];
   pte_t *pte1, *pte2;
   struct freepg *chosen;
@@ -829,22 +844,35 @@ void nfuSwap(uint addr) {
   for (j = 0; j < MAX_PSYC_PAGES; j++)
     if (proc->freepages[j].va != (char*)0xffffffff){
       //TODO delete      if(proc->freepages[j].age > 0)      cprintf("i=%d, age=%d, || ", j, proc->freepages[j].age);
-      if (proc->freepages[j].age < minAge){//TODO should be <= not < just wanted to see different indexes than 14
-        minAge = proc->freepages[j].age;
-        minIndx = j;
+      if (proc->freepages[j].age > maxAge){//TODO should be <= not < just wanted to see different indexes than 14
+        maxAge = proc->freepages[j].age;
+        maxIndx = j;
       }
     }
 
-  if(minIndx == -1)
+  if(maxIndx == -1)
     panic("nfuSwap: no free page to swap???");
-  chosen = &proc->freepages[minIndx];
+  chosen = &proc->freepages[maxIndx];
 
-      //TODO delete      cprintf("\nchose to swap va = %d, age = %d \n", chosen->va, chosen->age);
+  //TODO delete      
+  cprintf("\nchose to swap va = 0x%x, age = %d \n", chosen->va, chosen->age);
 
   //find the address of the page table entry to copy into the swap file
   pte1 = walkpgdir(proc->pgdir, (void*)chosen->va, 0);
   if (!*pte1)
     panic("nfuSwap: pte1 is empty");
+
+//  TODO verify: b4 accessing by writing to file,
+//  update accessed bit and age in case it misses a clock tick?
+//  be extra careful not to double add by locking  
+  acquire(&tickslock);
+  //TODO delete cprintf("acquire(&tickslock)\n");
+  if((*pte1) & PTE_A){
+    ++chosen->age;
+    *pte1 &= ~PTE_A;
+    cprintf("========\n\nWOW! Matan was right!\n(never saw this actually printed)=======\n\n");
+  }
+  release(&tickslock);
 
   //find a swap file page descriptor slot
   for (i = 0; i < MAX_PSYC_PAGES; i++){

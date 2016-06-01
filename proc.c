@@ -29,44 +29,42 @@ void
 NFUupdate(){
   struct proc *p;
   int i;
-  //TODO delete uint b4sh, after, newAge;
+  //TODO delete uint b4, after;//, newAge;
   pte_t *pte, *pde, *pgtab;
 
   acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if((p->state == SLEEPING || p->state == RUNNABLE || p->state == RUNNING) && (p->pid > 2)){// && (strcmp(proc->name, "init") != 0 || strcmp(proc->name, "sh") != 0)) {
-        //TODO deletecprintf("NFUupdate: p->name: %s, update pages...\n", p->name);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if((p->state == RUNNING || p->state == RUNNABLE || p->state == SLEEPING) && (p->pid > 2)){// && (strcmp(proc->name, "init") != 0 || strcmp(proc->name, "sh") != 0)) {
+      //TODO deletecprintf("NFUupdate: p->name: %s, update pages...\n", p->name);
+      for (i = 0; i < MAX_PSYC_PAGES; i++){
+        if (p->freepages[i].va == (char*)0xffffffff)
+          continue;
+        //TODO delete b4 = p->freepages[i].age;
+        ++p->freepages[i].age;
+        //after = p->freepages[i].age; 
+        ++p->swappedpages[i].age;
+        //TODO delete p->freepages[i].age = p->freepages[i].age >> 1;
 
-        for (i = 0; i < MAX_PSYC_PAGES; i++){
-          //if (p->freepages[i].va != (char*)0xffffffff)
-
-          //TODO delete           b4sh = p->freepages[i].age;
-          p->freepages[i].age = p->freepages[i].age >> 1;
-          //TODO delete after = p->freepages[i].age; 
-          //if(b4sh < after) 
-          //cprintf("\n\n===== OH NO! proc: %s,  page No. %d,  b4sh: %d < after: %d !!! ====  \n\n", p->name, i, b4sh, after);
-          p->swappedpages[i].age >>= 1;
-          //only dealing with pages in RAM 
-          //might mean we have to check access bit b4 moving a page to disk so we don't miss a tick
-          pde = &p->pgdir[PDX(p->freepages[i].va)];
-          if(*pde & PTE_P){
-            pgtab = (pte_t*)p2v(PTE_ADDR(*pde));
-            pte = &pgtab[PTX(p->freepages[i].va)];
-          }
-          else pte = 0;
-          //*pte = walkpgdir(proc->pgdir, (void*)p->freepages[i].va, 0);
-          if(pte)
-            //TODO verify if need to add this to where a page is moved to disc
-            if((*pte) & PTE_A){
-              p->freepages[i].age |= ADD_TO_AGE;
-              (*pte) &= ~PTE_A;
-              //TODO delete newAge = p->freepages[i].age;
-              //if(after > newAge)
-              // cprintf("\n\n===== OH NO! proc: %s,  page No. %d,  atter: %d > new: %d \n\n", p->name, i, after, newAge);
-            }
+        //only dealing with pages in RAM 
+        //might mean we have to check access bit b4 moving a page to disk so we don't miss a tick
+        pde = &p->pgdir[PDX(p->freepages[i].va)];
+        if(*pde & PTE_P){
+          pgtab = (pte_t*)p2v(PTE_ADDR(*pde));
+          pte = &pgtab[PTX(p->freepages[i].va)];
         }
+        else pte = 0;
+        if(pte)
+          //TODO verify if need to add this to where a page is moved to disc
+          if(*pte & PTE_A){
+            p->freepages[i].age = 0;
+            //p->freepages[i].age |= ADD_TO_AGE;
+            //(*pte) &= ~PTE_A;
+            //TODO delete newAge = p->freepages[i].age;
+            //cprintf("\n\n===== proc: %s,  page No. %d,  after: %d, bf: %d \n\n", p->name, i, after, b4);
+          }
       }
     }
+  }
   release(&ptable.lock);
 }
 
