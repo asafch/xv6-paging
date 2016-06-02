@@ -566,6 +566,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   pte_t *pte;
   uint a, pa;
+  int i;
 
   if(newsz >= oldsz)
     return oldsz;
@@ -579,10 +580,73 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       pa = PTE_ADDR(*pte);
       if(pa == 0)
         panic("kfree");
+      if (proc->pgdir == pgdir) {
+        /*
+        The process itself is deallocating pages via sbrk() with a negative
+        argument. Update proc's data structure accordingly.
+        */
+#ifndef NONE
+        for (i = 0; i < MAX_PSYC_PAGES; i++) {
+          if (proc->freepages[i].va == (char*)a)
+            goto founddeallocuvmPTEP;
+        }
+
+        panic("deallocuvm: entry not found in proc->freepages");
+founddeallocuvmPTEP:
+        proc->freepages[i].va = (char*) 0xffffffff;
+#if FIFO
+        if (proc->head == &proc->freepages[i])
+          proc->head = proc->freepages[i].next;
+        else {
+          struct freepg *l = proc->head;
+          while (l->next != &proc->freepages[i])
+            l = l->next;
+          l->next = proc->freepages[i].next;
+        }
+        proc->freepages[i].next = 0;
+
+#elif SCFIFO
+        if (proc->head == &proc->freepages[i])
+          proc->head = proc->freepages[i].next;
+        if (proc->tail == &proc->freepages[i])
+          proc->tail = proc->freepages[i].prev;
+        else {
+          struct freepg *l = proc->head;
+          while (l->next != &proc->freepages[i])
+            l = l->next;
+          l->next = proc->freepages[i].next;
+          if (proc->freepages[i].next != 0)
+            proc->freepages[i].next->prev = l;
+        }
+        proc->freepages[i].next = 0;
+        proc->freepages[i].prev = 0;
+
+#elif NFU
+        proc->freepages[i].age = 0;
+#endif
+#endif
+
+        proc->pagesinmem--;
+      }
       char *v = p2v(pa);
       kfree(v);
-      // TODO delete cprintf("deallocuvm: %d, pid %d\n", proc->pagesNo--, proc->pid);
       *pte = 0;
+    }
+    else if (*pte & PTE_PG && proc->pgdir == pgdir) {
+      /*
+      The process itself is deallocating pages via sbrk() with a negative
+      argument. Update proc's data structure accordingly.
+      */
+        for (i = 0; i < MAX_PSYC_PAGES; i++) {
+          if (proc->swappedpages[i].va == (char*)a)
+            goto founddeallocuvmPTEPG;
+        }
+        panic("deallocuvm: entry not found in proc->swappedpages");
+founddeallocuvmPTEPG:
+        proc->swappedpages[i].va = (char*) 0xffffffff;
+        proc->swappedpages[i].age = 0;
+        proc->swappedpages[i].swaploc = 0;
+        proc->pagesinswapfile--;
     }
   }
   return newsz;
@@ -761,7 +825,6 @@ foundswappedslot:
   l->next = proc->head;
   proc->head = l;
   l->va = (char*)PTE_ADDR(addr);
-
 }
 
 void scSwap(uint addr) {

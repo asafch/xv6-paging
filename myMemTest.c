@@ -72,6 +72,14 @@ main(int argc, char *argv[]){
 	}
 	else {
 		wait();
+
+		/*
+		Deallocate all the pages.
+		*/
+		sbrk(-14 * PGSIZE);
+		printf(1, "Deallocated all extra pages.\nPress any key to exit the father code.\n");
+		gets(input, 10);
+
 		exit();
 	}
 

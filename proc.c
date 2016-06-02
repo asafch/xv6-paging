@@ -184,8 +184,7 @@ growproc(int n)
     // TODO delete cprintf("growproc:deallocuvm\n");
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
-    proc->pagesinmem -= ((PGROUNDUP(sz) - PGROUNDUP(proc->sz)) % PGSIZE);
-    // TODO update proc->freepages
+    // proc->pagesinmem -= ((PGROUNDUP(sz) - PGROUNDUP(proc->sz)) % PGSIZE);
   }
   proc->sz = sz;
   switchuvm(proc);
@@ -216,8 +215,6 @@ fork(void)
   // TODO delete cprintf("fork:copyuvm proc->pagesinmem:%d\n", proc->pagesinmem);
   np->pagesinmem = proc->pagesinmem;
   np->pagesinswapfile = proc->pagesinswapfile;
-  np->head = proc->head;
-  np->tail = proc->tail;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -254,15 +251,26 @@ fork(void)
     }
   }
 
+  char *diff = (char*)(&proc->freepages[0] - &np->freepages[0]);
+
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
     np->freepages[i].va = proc->freepages[i].va;
-    np->freepages[i].next = proc->freepages[i].next;
-    np->freepages[i].prev = proc->freepages[i].prev;
+    np->freepages[i].next = (struct freepg *)((uint)proc->freepages[i].next + (uint)diff);
+    np->freepages[i].prev = (struct freepg *)((uint)proc->freepages[i].prev + (uint)diff);
     np->freepages[i].age = proc->freepages[i].age;
     np->swappedpages[i].age = proc->swappedpages[i].age;
     np->swappedpages[i].va = proc->swappedpages[i].va;
     np->swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
   }
+
+#if FIFO || SCFIFO
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    if (proc->head->va == np->freepages[i].va)
+      np->head = &np->freepages[i];
+    if (proc->tail->va == np->freepages[i].va)
+      np->tail = &np->freepages[i];
+  }
+#endif
 
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
