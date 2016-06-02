@@ -79,8 +79,6 @@ main(int argc, char *argv[]){
 		sbrk(-14 * PGSIZE);
 		printf(1, "Deallocated all extra pages.\nPress any key to exit the father code.\n");
 		gets(input, 10);
-
-		exit();
 	}
 
 	#elif SCFIFO
@@ -97,6 +95,6 @@ main(int argc, char *argv[]){
 		arr[i] = sbrk(PGSIZE);
 		printf(1, "arr[%d]=0x%x\n", i, arr[i]);
 	}
-	exit();
 	#endif
+	exit();
 }
