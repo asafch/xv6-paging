@@ -69,7 +69,7 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   return &pgtab[PTX(va)];
 }
 
-void 
+void
 checkProcAccBit(){
   int i;
   pte_t *pte1;
@@ -238,8 +238,8 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 }
 
 void fifoRecord(char *va){
-    int i;
-//TODO delete cprintf("rnp pid:%d count:%d va:0x%x\n", proc->pid, proc->pagesinmem, va);
+  int i;
+  //TODO delete cprintf("rnp pid:%d count:%d va:0x%x\n", proc->pid, proc->pagesinmem, va);
   for (i = 0; i < MAX_PSYC_PAGES; i++)
     if (proc->freepages[i].va == (char*)0xffffffff)
       goto foundrnp;
@@ -385,7 +385,7 @@ foundswappedpageslot:
     proc->head = mover;
     mover = proc->tail;
   }while(checkAccBit(proc->head->va) && mover != oldTail);
-  
+
   //make the swap
   proc->swappedpages[i].va = proc->head->va;
   int num = 0;
@@ -444,7 +444,7 @@ foundswappedpageslot:
 
 //  TODO verify: b4 accessing by writing to file,
 //  update accessed bit and age in case it misses a clock tick?
-//  be extra careful not to double add by locking  
+//  be extra careful not to double add by locking
   acquire(&tickslock);
   //TODO delete cprintf("acquire(&tickslock)\n");
   if((*pte1) & PTE_A){
@@ -527,7 +527,6 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       //TODO: these FIFO specific steps don't belong here!
       // they should move to a FIFO specific functiom!
       #if FIFO
-      cprintf("\n\nFIFO???\n\n");
       l->va = (char*)a;
       l->next = proc->head;
       proc->head = l;
@@ -637,8 +636,14 @@ copyuvm(pde_t *pgdir, uint sz)
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
+    if(!(*pte & PTE_P) && !(*pte & PTE_PG))
       panic("copyuvm: page not present");
+    if (*pte & PTE_PG) {
+      // cprintf("copyuvm PTR_PG\n"); // TODO delete
+      pte = walkpgdir(d, (void*) i, 1);
+      *pte = PTE_U | PTE_W | PTE_PG;
+      continue;
+    }
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -854,7 +859,7 @@ void nfuSwap(uint addr) {
     panic("nfuSwap: no free page to swap???");
   chosen = &proc->freepages[maxIndx];
 
-  //TODO delete      
+  //TODO delete
   cprintf("\nchose to swap va = 0x%x, age = %d \n", chosen->va, chosen->age);
 
   //find the address of the page table entry to copy into the swap file
@@ -864,7 +869,7 @@ void nfuSwap(uint addr) {
 
 //  TODO verify: b4 accessing by writing to file,
 //  update accessed bit and age in case it misses a clock tick?
-//  be extra careful not to double add by locking  
+//  be extra careful not to double add by locking
   acquire(&tickslock);
   //TODO delete cprintf("acquire(&tickslock)\n");
   if((*pte1) & PTE_A){

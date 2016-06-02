@@ -41,11 +41,11 @@ NFUupdate(){
           continue;
         //TODO delete b4 = p->freepages[i].age;
         ++p->freepages[i].age;
-        //after = p->freepages[i].age; 
+        //after = p->freepages[i].age;
         ++p->swappedpages[i].age;
         //TODO delete p->freepages[i].age = p->freepages[i].age >> 1;
 
-        //only dealing with pages in RAM 
+        //only dealing with pages in RAM
         //might mean we have to check access bit b4 moving a page to disk so we don't miss a tick
         pde = &p->pgdir[PDX(p->freepages[i].va)];
         if(*pde & PTE_P){
@@ -215,6 +215,9 @@ fork(void)
   }
   // TODO delete cprintf("fork:copyuvm proc->pagesinmem:%d\n", proc->pagesinmem);
   np->pagesinmem = proc->pagesinmem;
+  np->pagesinswapfile = proc->pagesinswapfile;
+  np->head = proc->head;
+  np->tail = proc->tail;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -249,6 +252,16 @@ fork(void)
         panic("fork: error while writing the parent's swap file to the child");
       offset += nread;
     }
+  }
+
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    np->freepages[i].va = proc->freepages[i].va;
+    np->freepages[i].next = proc->freepages[i].next;
+    np->freepages[i].prev = proc->freepages[i].prev;
+    np->freepages[i].age = proc->freepages[i].age;
+    np->swappedpages[i].age = proc->swappedpages[i].age;
+    np->swappedpages[i].va = proc->swappedpages[i].va;
+    np->swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
   }
 
   // lock to force the compiler to emit the np->state write last.
