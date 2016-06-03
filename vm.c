@@ -298,7 +298,7 @@ void recordNewPage(char *va) {
 #else
 
 #if NFU
-  scRecord(va);
+  nfuRecord(va);
 #endif
 #endif
 #endif
@@ -502,7 +502,7 @@ struct freepg *writePageToSwapFile(char* va) {
 #else
 
 #if NFU
-  return scWrite(va);
+  return nfuWrite(va);
 #endif
 #endif
 #endif
@@ -620,7 +620,7 @@ founddeallocuvmPTEP:
           l->next = proc->freepages[i].next;
         }
         proc->freepages[i].next = 0;
-        
+
 //#endif
 #elif SCFIFO
         if (proc->head == &proc->freepages[i]){
@@ -645,7 +645,7 @@ founddeallocuvmPTEP:
         }
 
 doneLooking:
-        cprintf("deallocCount = %d\n", ++deallocCount);
+        //TODO delete cprintf("deallocCount = %d\n", ++deallocCount);
         proc->freepages[i].next = 0;
         proc->freepages[i].prev = 0;
 
@@ -1094,7 +1094,7 @@ void swapPages(uint addr) {
 #else
 
 #if NFU
-  scSwap(addr);
+  nfuSwap(addr);
 #endif
 #endif
 #endif
