@@ -251,6 +251,9 @@ fork(void)
     }
   }
 
+  np->totalPageFaultCount = proc->totalPageFaultCount;
+  np->totalPagedOutCount = proc->totalPagedOutCount;
+
   char *diff = (char*)(&proc->freepages[0] - &np->freepages[0]);
 
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
