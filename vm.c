@@ -623,12 +623,14 @@ founddeallocuvmPTEP:
 #elif SCFIFO
         if (proc->head == &proc->freepages[i]){
           proc->head = proc->freepages[i].next;
-          proc->head->prev = 0;
+          if(proc->head != 0)
+            proc->head->prev = 0;
           goto doneLooking;
         }
         if (proc->tail == &proc->freepages[i]){
           proc->tail = proc->freepages[i].prev;
-          proc->tail->next = 0;
+          if(proc->tail != 0)// should allways be true but lets be extra safe...
+            proc->tail->next = 0;
           goto doneLooking;
         }
         struct freepg *l = proc->head;
