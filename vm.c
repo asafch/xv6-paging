@@ -17,6 +17,7 @@ extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 struct segdesc gdt[NSEGS];
 
+int deallocCount = 0;
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -297,7 +298,7 @@ void recordNewPage(char *va) {
 #else
 
 #if NFU
-  nfuRecord(va);
+  scRecord(va);
 #endif
 #endif
 #endif
@@ -317,9 +318,9 @@ struct freepg *fifoWrite() {
 foundswappedpageslot:
   link = proc->head;
   if (link == 0)
-    panic("swapPages: proc->head is NULL");
+    panic("fifoWrite: proc->head is NULL");
   if (link->next == 0)
-    panic("swapPages: single page in phys mem");
+    panic("fifoWrite: single page in phys mem");
   // find the before-last link in the used pages list
   while (link->next->next != 0)
     link = link->next;
@@ -501,7 +502,7 @@ struct freepg *writePageToSwapFile(char* va) {
 #else
 
 #if NFU
-  return nfuWrite(va);
+  return scWrite(va);
 #endif
 #endif
 #endif
@@ -619,7 +620,8 @@ founddeallocuvmPTEP:
           l->next = proc->freepages[i].next;
         }
         proc->freepages[i].next = 0;
-
+        
+//#endif
 #elif SCFIFO
         if (proc->head == &proc->freepages[i]){
           proc->head = proc->freepages[i].next;
@@ -634,16 +636,71 @@ founddeallocuvmPTEP:
           goto doneLooking;
         }
         struct freepg *l = proc->head;
-        while (l->next != &proc->freepages[i])
+        while (l->next != 0 && l->next != &proc->freepages[i]){
           l = l->next;
+        }
         l->next = proc->freepages[i].next;
-        if (proc->freepages[i].next != 0)
+        if (proc->freepages[i].next != 0){
           proc->freepages[i].next->prev = l;
+        }
 
 doneLooking:
+        cprintf("deallocCount = %d\n", ++deallocCount);
         proc->freepages[i].next = 0;
         proc->freepages[i].prev = 0;
 
+/*
+this messy version is commented out
+
+        if (proc->head == &proc->freepages[i]){
+          cprintf("deallocuvm: deleting head\n");
+          proc->head = proc->freepages[i].next;
+          if(proc->head != 0)
+            proc->head->prev = 0;
+          goto doneLooking;
+        }
+        if (proc->tail == &proc->freepages[i]){
+          cprintf("deallocuvm: deleting tail\n");
+          proc->tail = proc->freepages[i].prev;
+          if(proc->tail != 0)// should allways be true but lets be extra safe...
+            proc->tail->next = 0;
+          goto doneLooking;
+        }
+        struct freepg *l = proc->head;
+        cprintf("deallocuvm: find someone between\n");
+        while (l->next != 0 && l->next != &proc->freepages[i]){
+          cprintf("deallocuvm: l = l->next\n");
+          l = l->next;
+        }
+        if(l->next == 0)
+          cprintf("l->next == 0\n");
+        else
+          cprintf("deallocuvm: found link to delete in the middle\n");
+        l->next = proc->freepages[i].next;
+        if (proc->freepages[i].next != 0){
+          cprintf("proc->freepages[i].next != 0\n");
+          proc->freepages[i].next->prev = l;
+        }
+*/
+        
+/*
+  cprintf("first version\n");
+  if (proc->head == &proc->freepages[i])
+    proc->head = proc->freepages[i].next;
+  if (proc->tail == &proc->freepages[i])
+    proc->tail = proc->freepages[i].prev;
+  else {
+    struct freepg *l = proc->head;
+    while (l->next != &proc->freepages[i])
+      l = l->next;
+      l->next = proc->freepages[i].next;
+      if (proc->freepages[i].next != 0)
+        proc->freepages[i].next->prev = l;
+  }
+  proc->freepages[i].next = 0;
+  proc->freepages[i].prev = 0;
+*/
+//#if NFU
 #elif NFU
         proc->freepages[i].age = 0;
 #endif
@@ -862,9 +919,9 @@ void scSwap(uint addr) {
   struct freepg *mover, *oldTail;
 
   if (proc->head == 0)
-    panic("swapPages: proc->head is NULL");
+    panic("scSwap: proc->head is NULL");
   if (proc->head->next == 0)
-    panic("swapPages: single page in phys mem");
+    panic("scSwap: single page in phys mem");
 
   mover = proc->tail;
   oldTail = proc->tail;// to avoid infinite loop if somehow everyone was accessed
@@ -1037,7 +1094,7 @@ void swapPages(uint addr) {
 #else
 
 #if NFU
-  nfuSwap(addr);
+  scSwap(addr);
 #endif
 #endif
 #endif
