@@ -265,8 +265,10 @@ fork(void)
 
 #if FIFO || SCFIFO
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
-    if (proc->head->va == np->freepages[i].va)
+    if (proc->head->va == np->freepages[i].va){
+      //TODO delete cprintf("\nfork: head copied!\n\n");
       np->head = &np->freepages[i];
+    }
     if (proc->tail->va == np->freepages[i].va)
       np->tail = &np->freepages[i];
   }
@@ -303,7 +305,7 @@ printProcMemPageInfo(struct proc *proc){
   cprintf("\npid:%d state:%s name:%s\n", proc->pid, state, proc->name);
 
   //print out memory pages info:
-  cprintf("Allocated memory pages: %d,\n", proc->pagesinmem);
+  cprintf("No. of pages currently in physical memory: %d,\n", proc->pagesinmem);
   cprintf("No. of pages currently paged out: %d,\n", proc->pagesinswapfile);
   cprintf("Total No. of page faults: %d,\n", proc->totalPageFaultCount);
   cprintf("Total number of paged out pages: %d,\n\n", proc->totalPagedOutCount);

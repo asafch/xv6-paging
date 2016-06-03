@@ -11,6 +11,7 @@
 #define MAX_POSSIBLE ~0x80000000
 //using 0x80000000 introduces "negative" numbers which r a pain in the ass!
 #define ADD_TO_AGE 0x40000000
+#define DEBUG 0
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -324,6 +325,12 @@ foundswappedpageslot:
     link = link->next;
   l = link->next;
   link->next = 0;
+
+  if(DEBUG){
+    //cprintf("\naddress between 0x%x and 0x%x was accessed but was on disk.\n", addr, addr+PGSIZE);
+    cprintf("FIFO chose to page out page starting at 0x%x \n\n", l->va);
+  }
+
   proc->swappedpages[i].va = l->va;
   int num = 0;
   if ((num = writeToSwapFile(proc, (char*)PTE_ADDR(l->va), i * PGSIZE, PGSIZE)) == 0)
@@ -369,9 +376,9 @@ struct freepg *scWrite(char *va) {
 foundswappedpageslot:
     //link = proc->head;
   if (proc->head == 0)
-    panic("swapPages: proc->head is NULL");
+    panic("scWrite: proc->head is NULL");
   if (proc->head->next == 0)
-    panic("swapPages: single page in phys mem");
+    panic("scWrite: single page in phys mem");
 
   mover = proc->tail;
   oldTail = proc->tail;// to avoid infinite loop if everyone was accessed
@@ -385,6 +392,11 @@ foundswappedpageslot:
     proc->head = mover;
     mover = proc->tail;
   }while(checkAccBit(proc->head->va) && mover != oldTail);
+
+  if(DEBUG){
+    //cprintf("address between 0x%x and 0x%x was accessed but was on disk.\n\n", addr, addr+PGSIZE);
+    cprintf("SCFIFO chose to page out page starting at 0x%x \n\n", proc->head->va);
+  }
 
   //make the swap
   proc->swappedpages[i].va = proc->head->va;
@@ -436,7 +448,10 @@ foundswappedpageslot:
     panic("nfuWrite: no free page to swap???");
   chosen = &proc->freepages[maxIndx];
 
-  //TODO delete  cprintf("\nchose to write va = 0x%x, age = %d \n", chosen->va, chosen->age);
+  if(DEBUG){
+    //cprintf("\naddress between 0x%x and 0x%x was accessed but was on disk.\n", addr, addr+PGSIZE);
+    cprintf("NFU chose to page out page starting at 0x%x \n\n", chosen->va);
+  }
 
   pte_t *pte1 = walkpgdir(proc->pgdir, (void*)chosen->va, 0);
   if (!*pte1)
@@ -450,7 +465,7 @@ foundswappedpageslot:
   if((*pte1) & PTE_A){
     ++chosen->age;
     *pte1 &= ~PTE_A;
-    cprintf("========\n\nWOW! Matan was right!\n(never saw this actually printed)=======\n\n");
+    //TODO delete cprintf("========\n\nWOW! Matan was right!\n(never saw this actually printed)=======\n\n");
   }
   release(&tickslock);
 
@@ -606,18 +621,24 @@ founddeallocuvmPTEP:
         proc->freepages[i].next = 0;
 
 #elif SCFIFO
-        if (proc->head == &proc->freepages[i])
+        if (proc->head == &proc->freepages[i]){
           proc->head = proc->freepages[i].next;
-        if (proc->tail == &proc->freepages[i])
-          proc->tail = proc->freepages[i].prev;
-        else {
-          struct freepg *l = proc->head;
-          while (l->next != &proc->freepages[i])
-            l = l->next;
-          l->next = proc->freepages[i].next;
-          if (proc->freepages[i].next != 0)
-            proc->freepages[i].next->prev = l;
+          proc->head->prev = 0;
+          goto doneLooking;
         }
+        if (proc->tail == &proc->freepages[i]){
+          proc->tail = proc->freepages[i].prev;
+          proc->tail->next = 0;
+          goto doneLooking;
+        }
+        struct freepg *l = proc->head;
+        while (l->next != &proc->freepages[i])
+          l = l->next;
+        l->next = proc->freepages[i].next;
+        if (proc->freepages[i].next != 0)
+          proc->freepages[i].next->prev = l;
+
+doneLooking:
         proc->freepages[i].next = 0;
         proc->freepages[i].prev = 0;
 
@@ -774,14 +795,19 @@ void fifoSwap(uint addr){
   struct freepg *link = proc->head;
   struct freepg *l;
   if (link == 0)
-    panic("swapPages: proc->head is NULL");
+    panic("fifoSwap: proc->head is NULL");
   if (link->next == 0)
-    panic("swapPages: single page in phys mem");
+    panic("fifoSwap: single page in phys mem");
   // find the before-last link in the used pages list
   while (link->next->next != 0)
     link = link->next;
   l = link->next;
   link->next = 0;
+
+  if(DEBUG){
+    //cprintf("\naddress between 0x%x and 0x%x was accessed but was on disk.\n", addr, addr+PGSIZE);
+    cprintf("FIFO chose to page out page starting at 0x%x \n\n", l->va);
+  }
 
   //find the address of the page table entry to copy into the swap file
   pte1 = walkpgdir(proc->pgdir, (void*)l->va, 0);
@@ -850,6 +876,11 @@ void scSwap(uint addr) {
     proc->head = mover;
     mover = proc->tail;
   }while(checkAccBit(proc->head->va) && mover != oldTail);
+
+  if(DEBUG){
+    //cprintf("\naddress between 0x%x and 0x%x was accessed but was on disk.\n", addr, addr+PGSIZE);
+    cprintf("SCFIFO chose to page out page starting at 0x%x \n\n", proc->head->va);
+  }
 
   //find the address of the page table entry to copy into the swap file
   pte1 = walkpgdir(proc->pgdir, (void*)proc->head->va, 0);
@@ -922,8 +953,10 @@ void nfuSwap(uint addr) {
     panic("nfuSwap: no free page to swap???");
   chosen = &proc->freepages[maxIndx];
 
-  //TODO delete
-  cprintf("\nchose to swap va = 0x%x, age = %d \n", chosen->va, chosen->age);
+  if(DEBUG){
+    //cprintf("\naddress between 0x%x and 0x%x was accessed but was on disk.\n", addr, addr+PGSIZE);
+    cprintf("NFU chose to page out page starting at 0x%x \n\n", chosen->va);
+  }
 
   //find the address of the page table entry to copy into the swap file
   pte1 = walkpgdir(proc->pgdir, (void*)chosen->va, 0);
@@ -938,7 +971,7 @@ void nfuSwap(uint addr) {
   if((*pte1) & PTE_A){
     ++chosen->age;
     *pte1 &= ~PTE_A;
-    cprintf("========\n\nWOW! Matan was right!\n(never saw this actually printed)=======\n\n");
+    //TODO delete cprintf("========\n\nWOW! Matan was right!\n(never saw this actually printed)=======\n\n");
   }
   release(&tickslock);
 
