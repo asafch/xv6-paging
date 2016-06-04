@@ -290,10 +290,12 @@ void recordNewPage(char *va) {
   //TODO delete $$$
 
 #if FIFO
+  //TODO cprintf("recordNewPage: %s is calling fifoRecord with: 0x%x\n", proc->name, va);
   fifoRecord(va);
 #else
 
 #if SCFIFO
+  //TODO cprintf("recordNewPage: %s is calling scRecord with: 0x%x\n", proc->name, va);
   scRecord(va);
 #else
 
@@ -419,6 +421,8 @@ foundswappedpageslot:
   lcr3(v2p(proc->pgdir));
   proc->head->va = va;
 
+  //TODO cprintf("scWrite: new addr in head: 0x%x\n", va);
+
   // unnecessary but will do for now
   return proc->head;
 }
@@ -498,6 +502,7 @@ struct freepg *writePageToSwapFile(char* va) {
 #else
 
 #if SCFIFO
+  //TODO cprintf("writePageToSwapFile: calling scWrite\n");
   return scWrite(va);
 #else
 
@@ -543,6 +548,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       //TODO: these FIFO specific steps don't belong here!
       // they should move to a FIFO specific functiom!
       #if FIFO
+      //TODO cprintf("allocuvm: FIFO's little part\n");
       l->va = (char*)a;
       l->next = proc->head;
       proc->head = l;
@@ -623,6 +629,8 @@ founddeallocuvmPTEP:
 
 //#endif
 #elif SCFIFO
+        //TODO  cprintf("deallocuvm: entering SCFIFO part\n");
+
         if (proc->head == &proc->freepages[i]){
           proc->head = proc->freepages[i].next;
           if(proc->head != 0)
@@ -1075,6 +1083,8 @@ foundswappedpageslot:
   //l->next = proc->head;
   //proc->head = l;
   chosen->va = (char*)PTE_ADDR(addr);
+  // was this missed some how???
+  chosen->age = 0;
 }
 
 void swapPages(uint addr) {
@@ -1090,6 +1100,7 @@ void swapPages(uint addr) {
 #else
 
 #if SCFIFO
+  //cprintf("swapPages: calling scSwap\n");
   scSwap(addr);
 #else
 

@@ -5,9 +5,18 @@ xv6 memory paging
 This project is part of an Operating Systems course taken in BGU. We introduce a 2-level paging mechanism. There are 4 paging policies: NONE, FIFO, SCFIFO and NFU.
 These policies are invoked with the SELECTION flag when launching, i.e.
 
-$ make qemu SELECTION=FIFO
+$ make clean qemu SELECTION=FIFO
 
 If the flag isn't defined at launch, then NFU is used.
+
+There are three places where the level of printing can be decided for the tests (in addition to the flag VERBOSE_PRINT) by setting the DEBUG constant to either a zero or a non-zero value.
+The default for all three is zero, which means minimal printing. Setting a non-zero variable would enable verbose printing.
+The options are as follows:
+
+1. proc.c - would print out info about the pages that are in memory.
+2. myMemTest.c - would perform more memory I-O and print accordingly.
+3. vm.c - would print out the chosen pages to be paged out by the current policy.
+
 
 For further information, consult the assignment description at https://www.cs.bgu.ac.il/~os162/Assignments/Assignment_3
 

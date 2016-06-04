@@ -38,7 +38,7 @@ exec(char *path, char **argv)
 
   // backup and reset proc fields
 #ifndef NONE
-  //TODO delete cprintf("EXEC: backing up page info \n");
+  //TODO delete   cprintf("EXEC: NONE undefined (proc = %s)- backing up page info \n", proc->name);
   int pagesinmem = proc->pagesinmem;
   int pagesinswapfile = proc->pagesinswapfile;
   int totalPageFaultCount = proc->totalPageFaultCount;
@@ -136,6 +136,9 @@ exec(char *path, char **argv)
   // TODO delete cprintf("freevm(oldpgdir)\n");
   freevm(oldpgdir);
   cprintf("no. of pages allocated on exec:%d, pid:%d, name:%s\n", proc->pagesinmem, proc->pid, proc->name);
+  //if(strcmp(proc->name, "sh") == 0)
+    // if(SELECTION == FIFO)
+    //   cprintf("\n\n SHELL PRINTING FIFO\n\n");
   return 0;
 
  bad:

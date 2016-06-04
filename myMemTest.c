@@ -83,10 +83,13 @@ main(int argc, char *argv[]){
 	}
 
 #elif SCFIFO
-
 	int i, j;
 	char *arr[14];
 	char input[10];
+
+	// TODO delete
+	printf(1, "myMemTest: testing SCFIFO... \n");
+
 	// Allocate all remaining 12 physical pages
 	for (i = 0; i < 12; ++i) {
 		arr[i] = sbrk(PGSIZE);
@@ -146,16 +149,11 @@ main(int argc, char *argv[]){
 		gets(input, 10);
 
 		/*
-		The purpose of this write is to create some PGFLT in the child process, and verify that it is caught and handled properly, 
-		but unlike FIFO, we're not sure sure that page 8 is in swap file, 
-		so instead of committing to a specific page, just write to all pages and show no traps.
+		The purpose of this write is to create a PGFLT in the child process, and
+		verify that it is caught and handled properly.
 		*/
-		for (i = 0; i < 14; i++) {
-			arr[i][0] = 'k';
-		}
-
-		//arr[5][0] = 't';
-		printf(1, "Page faults should have occurred in child proccess.\nPress any key to exit the child code.\n");
+		arr[5][0] = 'k';
+		printf(1, "A Page fault should have occurred in child proccess.\nPress any key to exit the child code.\n");
 		gets(input, 10);
 
 		exit();
@@ -173,9 +171,14 @@ main(int argc, char *argv[]){
 
 
 	#elif NFU
+	
 	int i, j;
 	char *arr[27];
 	char input[10];
+
+	// TODO delete
+	printf(1, "myMemTest: testing NFU... \n");
+
 	// Allocate all remaining 12 physical pages
 	for (i = 0; i < 12; ++i) {
 		arr[i] = sbrk(PGSIZE);
@@ -237,14 +240,10 @@ main(int argc, char *argv[]){
 		gets(input, 10);
 
 		/*
-		The purpose of this write is to create some PGFLT in the child process, and verify that it is caught and handled properly, 
-		but unlike FIFO, we're not sure sure that page 8 is in swap file, 
-		so instead of committing to a specific page, just write to all pages and show no traps.
+		The purpose of this write is to create a PGFLT in the child process, and
+		verify that it is caught and handled properly.
 		*/
-		for (i = 0; i < 14; i++) {
-			arr[i][0] = 'k';
-		}
-
+		arr[5][0] = 'k';
 		//arr[5][0] = 't';
 		printf(1, "Page faults should have occurred in child proccess.\nPress any key to exit the child code.\n");
 		gets(input, 10);

@@ -10,7 +10,7 @@
 
 //using 0x80000000 introduces "negative" numbers which r a pain in the ass!
 #define ADD_TO_AGE 0x40000000
-
+#define DEBUG 0
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -197,8 +197,11 @@ growproc(int n)
 int
 fork(void)
 {
-  int i, pid;
+  int i, j, pid;
   struct proc *np;
+
+    // if(SELECTION==FIFO)
+    //   cprintf("\n\n FIFO chosen!\n\n");
 
   // Allocate process.
   if((np = allocproc()) == 0)
@@ -251,9 +254,11 @@ fork(void)
     }
   }
 
-  np->totalPageFaultCount = proc->totalPageFaultCount;
-  np->totalPagedOutCount = proc->totalPagedOutCount;
+  // no need for this after all
+  //np->totalPageFaultCount = proc->totalPageFaultCount;
+  //np->totalPagedOutCount = proc->totalPagedOutCount;
 
+/*
   char *diff = (char*)(&proc->freepages[0] - &np->freepages[0]);
 
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
@@ -265,8 +270,26 @@ fork(void)
     np->swappedpages[i].va = proc->swappedpages[i].va;
     np->swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
   }
+*/
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    np->freepages[i].va = proc->freepages[i].va;
+    np->freepages[i].age = proc->freepages[i].age;
+    np->swappedpages[i].age = proc->swappedpages[i].age;
+    np->swappedpages[i].va = proc->swappedpages[i].va;
+    np->swappedpages[i].swaploc = proc->swappedpages[i].swaploc;
+  }
 
-#if FIFO || SCFIFO
+  for (i = 0; i < MAX_PSYC_PAGES; i++) 
+    for (j = 0; j < MAX_PSYC_PAGES; ++j)
+      if(np->freepages[j].va == proc->freepages[i].next->va)
+        np->freepages[i].next = &np->freepages[j];
+      if(np->freepages[j].va == proc->freepages[i].prev->va)
+        np->freepages[i].prev = &np->freepages[j];
+
+      
+  
+
+#if FIFO 
   for (i = 0; i < MAX_PSYC_PAGES; i++) {
     if (proc->head->va == np->freepages[i].va){
       //TODO delete cprintf("\nfork: head copied!\n\n");
@@ -274,6 +297,19 @@ fork(void)
     }
     if (proc->tail->va == np->freepages[i].va)
       np->tail = &np->freepages[i];
+  }
+#endif
+
+#if SCFIFO
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    if (proc->head->va == np->freepages[i].va){
+      //TODO delete       cprintf("\nfork: head copied!\n\n");
+      np->head = &np->freepages[i];
+    }
+    if (proc->tail->va == np->freepages[i].va){
+      np->tail = &np->freepages[i];
+      //cprintf("\nfork: head copied!\n\n");
+    }
   }
 #endif
 
@@ -298,6 +334,7 @@ printProcMemPageInfo(struct proc *proc){
   int i;
   char *state;
   uint pc[10];
+  struct freepg *l;
 
   if(proc->state >= 0 && proc->state < NELEM(states) && states[proc->state])
     state = states[proc->state];
@@ -319,6 +356,27 @@ printProcMemPageInfo(struct proc *proc){
     for(i=0; i<10 && pc[i] != 0; i++)
       cprintf(" %p", pc[i]);
   }
+  if(DEBUG){
+    for (i = 0; i < MAX_PSYC_PAGES; ++i)
+    {
+      if(proc->freepages[i].va != (char*)0xffffffff)
+        cprintf("freepages[%d].va = 0x%x \n", i, proc->freepages[i].va);
+    }
+    i = 0;
+    l = proc->head;
+    if(l == 0)
+      cprintf("proc->head == 0");
+    else {
+      cprintf("proc->head == 0x%x , i=%d\n", l->va, ++i);
+      while(l->next != 0){
+        l = l->next;
+        cprintf("next->va == 0x%x , i=%d\n", l->va, ++i);
+      }
+      cprintf("next link is null, list is finished!\n");
+    }
+    if(proc->tail != 0)
+      cprintf("tail->va == 0x%x \n", proc->tail->va);
+    }
 }
 
 // Exit the current process.  Does not return.

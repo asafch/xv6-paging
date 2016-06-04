@@ -155,13 +155,19 @@ main(void)
     }
   }
 
-  #if FIFO
-  printf(1, "Paging policy: FIFO\n");
-  #elif SCFIFO
+  #ifdef FIFO
+    printf(1, "Paging policy: FIFO\n");
+  #endif
+
+  #ifdef SCFIFO
   printf(1, "Paging policy: SCFIFO\n");
-  #elif NFU
+  #endif
+
+  #ifdef NFU
   printf(1, "Paging policy: NFU\n");
-  #else
+  #endif
+
+  #ifdef NONE
   printf(1, "Paging policy: NONE\n");
   #endif
 
